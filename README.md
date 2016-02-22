@@ -33,6 +33,18 @@ gogetdoc\ident.go:17: impossible type assertion:
                 want Parent() *"go/types".Scope
 ```
 
+## Usage
+
+Simply specify a filename and _byte_ offset with the `pos` flag:
+
+```
+$ gogetdoc -pos $GOROOT/src/fmt/format.go:#6274
+func unicode/utf8.RuneCountInString(s string) (n int)
+
+RuneCountInString is like RuneCount but its input is a string.
+
+```
+
 ## Contributions
 
 Are more than welcome!  For small changes feel free to open a pull request.
