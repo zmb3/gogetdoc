@@ -14,13 +14,24 @@ to say "get me the documentation for this item here."
 
 The `gogetdoc` tool aims to make it easier for editors to provide access to
 Go documentation.  Simply give it a filename and offset within the file and
-it will figure out what what you're referring to and find the documentation
+it will figure out what you're referring to and find the documentation
 for it.
 
 ## Prerequisites
 
-This tool **requires Go 1.6**, which is currently available by building from tip
-or by installing the Go 1.6 release candidate from https://golang.org/dl/.
+This tool relies on the `go/types` package, which **requires Go 1.6**.
+
+If you attempt to install the tool with an earlier version of Go, you may see
+the following error:
+
+```
+$ go get github.com/zmb3/gogetdoc
+# github.com/zmb3/gogetdoc
+gogetdoc\ident.go:17: impossible type assertion:
+        *"golang.org/x/tools/go/types".PkgName does not implement "go/types".Object (wrong type for Parent method)
+                have Parent() *"golang.org/x/tools/go/types".Scope
+                want Parent() *"go/types".Scope
+```
 
 ## Contributions
 
