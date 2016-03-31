@@ -79,7 +79,8 @@ func Run(filename string, offset int64) (*Doc, error) {
 		return nil, fmt.Errorf("gogetdoc: couldn't get package for %s: %s", filename, err.Error())
 	}
 	conf := &loader.Config{
-		ParserMode: parser.ParseComments,
+		ParserMode:          parser.ParseComments,
+		TypeCheckFuncBodies: func(pkg string) bool { return pkg == bp.ImportPath },
 	}
 	conf.ImportWithTests(bp.ImportPath)
 	lprog, err := conf.Load()
