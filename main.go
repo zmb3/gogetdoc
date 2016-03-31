@@ -2,6 +2,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,6 +12,8 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -25,6 +29,7 @@ import (
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	pos        = flag.String("pos", "", "Filename and byte offset of item to document, e.g. foo.go:#123")
+	modified   = flag.Bool("modified", false, "read an archive of modified files from standard input")
 )
 
 const (
@@ -58,7 +63,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	d, err := Run(filename, offset)
+	ctx := &build.Default
+	if *modified {
+		overlay, err := parseModified(os.Stdin)
+		if err != nil {
+			log.Fatalln("invalid archive:", err)
+		}
+		ctx = overlayContext(ctx, overlay)
+	}
+
+	d, err := Run(ctx, filename, offset)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -69,16 +83,17 @@ func main() {
 }
 
 // Run is a wrapper for the gogetdoc command.  It is broken out of main for easier testing.
-func Run(filename string, offset int64) (*Doc, error) {
+func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil, errors.New("gogetdoc: couldn't get working directory")
 	}
-	bp, err := buildutil.ContainingPackage(&build.Default, wd, filename)
+	bp, err := buildutil.ContainingPackage(ctx, wd, filename)
 	if err != nil {
 		return nil, fmt.Errorf("gogetdoc: couldn't get package for %s: %s", filename, err.Error())
 	}
 	conf := &loader.Config{
+		Build:               ctx,
 		ParserMode:          parser.ParseComments,
 		TypeCheckFuncBodies: func(pkg string) bool { return pkg == bp.ImportPath },
 	}
@@ -165,4 +180,68 @@ func parsePos(p string) (filename string, offset int64, err error) {
 	filename = p[:sep]
 	offset, err = strconv.ParseInt(p[sep+2:], 10, 32)
 	return
+}
+
+func parseModified(r io.Reader) (map[string][]byte, error) {
+	out := map[string][]byte{}
+	br := bufio.NewReader(r)
+	for {
+		name, err := br.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error reading name in archive: %s", err)
+		}
+		name = filepath.Clean(strings.TrimSpace(name))
+		size, err := br.ReadString('\n')
+		if err != nil {
+			return nil, fmt.Errorf("error reading size in archive: %s", err)
+		}
+		size = strings.TrimSpace(size)
+		n, err := strconv.Atoi(size)
+		if err != nil {
+			return nil, fmt.Errorf("invalid size in archive: %s", err)
+		}
+		b := make([]byte, n)
+		_, err = io.ReadFull(br, b)
+		if err != nil {
+			return nil, fmt.Errorf("error reading archive content: %s", err)
+		}
+		out[name] = b
+	}
+	return out, nil
+}
+
+func overlayContext(ctx *build.Context, overlay map[string][]byte) *build.Context {
+	newCtx := *ctx
+	newCtx.OpenFile = func(name string) (io.ReadCloser, error) {
+		if b, ok := overlay[name]; ok {
+			return ioutil.NopCloser(bytes.NewReader(b)), nil
+		}
+
+		for path, b := range overlay {
+			if sameFile(name, path) {
+				return ioutil.NopCloser(bytes.NewReader(b)), nil
+			}
+		}
+
+		return buildutil.OpenFile(ctx, name)
+	}
+
+	return &newCtx
+}
+
+func sameFile(a, b string) bool {
+	if filepath.Base(a) != filepath.Base(b) {
+		// We only care about symlinks for the GOPATH itself. File
+		// names need to match.
+		return false
+	}
+	if ai, err := os.Stat(a); err == nil {
+		if bi, err := os.Stat(b); err == nil {
+			return os.SameFile(ai, bi)
+		}
+	}
+	return false
 }
