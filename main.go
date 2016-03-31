@@ -81,7 +81,7 @@ func Run(filename string, offset int64) (*Doc, error) {
 	conf := &loader.Config{
 		ParserMode: parser.ParseComments,
 	}
-	conf.Import(bp.ImportPath)
+	conf.ImportWithTests(bp.ImportPath)
 	lprog, err := conf.Load()
 	if err != nil {
 		return nil, fmt.Errorf("gogetdoc: error loading program: %s", err.Error())
