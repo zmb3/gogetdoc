@@ -137,8 +137,6 @@ func DocForPos(lprog *loader.Program, filename string, offset int64) (*Doc, erro
 
 // FileFromProgram attempts to locate a token.File from a loaded program.
 func FileFromProgram(prog *loader.Program, name string) *token.File {
-	// This logic borrowed from golang.org/x/tools -
-	// both oracle and gorename do something similar.
 	for _, info := range prog.AllPackages {
 		for _, astFile := range info.Files {
 			tokFile := prog.Fset.File(astFile.Pos())
@@ -150,14 +148,8 @@ func FileFromProgram(prog *loader.Program, name string) *token.File {
 			if tokName == name {
 				return tokFile
 			}
-			if filepath.Base(tokName) == filepath.Base(name) {
-				if tokInfo, err := os.Stat(tokName); err == nil {
-					if other, err := os.Stat(name); err == nil {
-						if os.SameFile(tokInfo, other) {
-							return tokFile
-						}
-					}
-				}
+			if sameFile(tokName, name) {
+				return tokFile
 			}
 		}
 	}
