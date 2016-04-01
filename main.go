@@ -32,6 +32,13 @@ var (
 	modified   = flag.Bool("modified", false, "read an archive of modified files from standard input")
 )
 
+const modifiedUsage = `
+The archive format for the -modified flag consists of the file name, followed
+by a newline, the decimal file size, another newline, and the contents of the file.
+
+This allows editors to supply gogetdoc with the contents of their unsaved buffers.
+`
+
 const (
 	indent     = ""
 	preIndent  = "    "
@@ -46,6 +53,11 @@ type Doc struct {
 }
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s\n", os.Args[0])
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, modifiedUsage)
+	}
 	flag.Parse()
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)

@@ -45,6 +45,18 @@ RuneCountInString is like RuneCount but its input is a string.
 
 ```
 
+### Unsaved files
+
+`gogetdoc` supports the same archive format as `guru` (formerly `oracle`).
+Editors can supply `gogetdoc` with the contents of unsaved buffers by
+using the `-modified` flag and writing an archive to stdin.  
+Files in the archive will be preferred over those on disk.
+
+Each archive entry consists of:
+ - the file name, followed by a newline
+ - the (decimal) file size, followed by a newline
+ - the contents of the file
+
 ## Contributions
 
 Are more than welcome!  For small changes feel free to open a pull request.
