@@ -108,6 +108,16 @@ func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 		Build:               ctx,
 		ParserMode:          parser.ParseComments,
 		TypeCheckFuncBodies: func(pkg string) bool { return pkg == bp.ImportPath },
+		AllowErrors:         true,
+	}
+
+	seenError := false
+	conf.TypeChecker.Error = func(err error) {
+		if seenError {
+			return
+		}
+		fmt.Fprintln(os.Stderr, err)
+		seenError = true
 	}
 	conf.ImportWithTests(bp.ImportPath)
 	lprog, err := conf.Load()
