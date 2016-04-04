@@ -111,20 +111,23 @@ func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 		AllowErrors:         true,
 	}
 
-	seenError := false
+	var parseError error
 	conf.TypeChecker.Error = func(err error) {
-		if seenError {
+		if parseError != nil {
 			return
 		}
-		fmt.Fprintln(os.Stderr, err)
-		seenError = true
+		parseError = err
 	}
 	conf.ImportWithTests(bp.ImportPath)
 	lprog, err := conf.Load()
 	if err != nil {
 		return nil, fmt.Errorf("gogetdoc: error loading program: %s", err.Error())
 	}
-	return DocForPos(lprog, filename, offset)
+	doc, err := DocForPos(lprog, filename, offset)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, parseError)
+	}
+	return doc, err
 }
 
 // DocForPos attempts to get the documentation for an item given a filename and byte offset.
