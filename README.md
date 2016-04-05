@@ -1,6 +1,8 @@
 gogetdoc
 ========
 
+[![Build Status](https://travis-ci.org/zmb3/gogetdoc.svg?branch=master)](https://travis-ci.org/zmb3/gogetdoc)
+
 Retrieve documentation for items in Go source code.
 
 Go has a variety of tools that make it easy to lookup documentation.
