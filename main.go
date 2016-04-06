@@ -174,6 +174,9 @@ func FileFromProgram(prog *loader.Program, name string) *token.File {
 	for _, info := range prog.AllPackages {
 		for _, astFile := range info.Files {
 			tokFile := prog.Fset.File(astFile.Pos())
+			if tokFile == nil {
+				continue
+			}
 			tokName := tokFile.Name()
 			if runtime.GOOS == "windows" {
 				tokName = filepath.ToSlash(tokName)
