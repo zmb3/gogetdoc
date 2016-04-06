@@ -120,7 +120,7 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 		doc = &Doc{
 			Import: pkgPath,
 			Name:   obj.Name(),
-			Title:  formatNode(node, obj, prog),
+			Decl:   formatNode(node, obj, prog),
 		}
 		break
 	}

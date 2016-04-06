@@ -49,7 +49,7 @@ const (
 type Doc struct {
 	Import string
 	Name   string
-	Title  string
+	Decl   string
 	Doc    string
 }
 
@@ -95,7 +95,7 @@ func main() {
 		fmt.Printf("import \"%s\"\n", d.Import)
 		fmt.Println()
 	}
-	fmt.Println(d.Title)
+	fmt.Println(d.Decl)
 	fmt.Println()
 	if d.Doc == "" {
 		d.Doc = "Undocumented."

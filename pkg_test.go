@@ -87,7 +87,7 @@ func TestPackageDoc(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !strings.HasPrefix(doc.Title, "package fmt") {
-		t.Errorf("Want 'package fmt', got %s\n", doc.Title)
+	if !strings.HasPrefix(doc.Decl, "package fmt") {
+		t.Errorf("Want 'package fmt', got %s\n", doc.Decl)
 	}
 }
