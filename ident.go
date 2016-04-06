@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/printer"
-	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/loader"
@@ -137,20 +136,9 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 			doc.Doc = n.Doc.Text()
 			return doc, nil
 		case *ast.GenDecl:
-			var constValue string
-			if n.Tok == token.CONST {
-			SpecLoop:
-				for _, s := range n.Specs {
-					vs := s.(*ast.ValueSpec)
-					for _, val := range vs.Values {
-						if bl, ok := val.(*ast.BasicLit); ok {
-							if bl.Value != "" {
-								constValue = bl.Value
-								break SpecLoop
-							}
-						}
-					}
-				}
+			constValue := ""
+			if c, ok := obj.(*types.Const); ok {
+				constValue = c.Val().ExactString()
 			}
 			if n.Doc != nil {
 				doc.Doc = n.Doc.Text()
