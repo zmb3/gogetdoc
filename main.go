@@ -47,9 +47,10 @@ const (
 
 // Doc holds the resulting documentation for a particular item.
 type Doc struct {
-	Name  string
-	Title string
-	Doc   string
+	Import string
+	Name   string
+	Title  string
+	Doc    string
 }
 
 func main() {
@@ -90,7 +91,12 @@ func main() {
 		os.Exit(1)
 	}
 	// TODO: output format
-	fmt.Println(d.Title, "\n")
+	if d.Import != "" {
+		fmt.Printf("import \"%s\"\n", d.Import)
+		fmt.Println()
+	}
+	fmt.Println(d.Title)
+	fmt.Println()
 	doc.ToText(os.Stdout, d.Doc, indent, preIndent, lineLength)
 }
 
