@@ -107,6 +107,9 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 	}
 
 	_, nodes, _ := prog.PathEnclosingInterval(obj.Pos(), obj.Pos())
+	if len(nodes) == 0 {
+		return nil, fmt.Errorf("No documentation found for %s", obj.Name())
+	}
 	var doc *Doc
 	for _, node := range nodes {
 		switch node.(type) {
@@ -167,5 +170,5 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 			}
 		}
 	}
-	return nil, fmt.Errorf("No documentation found for %s", obj.Name())
+	return doc, nil
 }

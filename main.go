@@ -97,6 +97,9 @@ func main() {
 	}
 	fmt.Println(d.Title)
 	fmt.Println()
+	if d.Doc == "" {
+		d.Doc = "Undocumented."
+	}
 	doc.ToText(os.Stdout, d.Doc, indent, preIndent, lineLength)
 }
 
