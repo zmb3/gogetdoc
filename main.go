@@ -47,9 +47,10 @@ const (
 
 // Doc holds the resulting documentation for a particular item.
 type Doc struct {
-	Name  string
-	Title string
-	Doc   string
+	Import string
+	Name   string
+	Decl   string
+	Doc    string
 }
 
 func main() {
@@ -90,7 +91,15 @@ func main() {
 		os.Exit(1)
 	}
 	// TODO: output format
-	fmt.Println(d.Title, "\n")
+	if d.Import != "" {
+		fmt.Printf("import \"%s\"\n", d.Import)
+		fmt.Println()
+	}
+	fmt.Println(d.Decl)
+	fmt.Println()
+	if d.Doc == "" {
+		d.Doc = "Undocumented."
+	}
 	doc.ToText(os.Stdout, d.Doc, indent, preIndent, lineLength)
 }
 
@@ -124,7 +133,7 @@ func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 		return nil, fmt.Errorf("gogetdoc: error loading program: %s", err.Error())
 	}
 	doc, err := DocForPos(lprog, filename, offset)
-	if err != nil {
+	if err != nil && parseError != nil {
 		fmt.Fprintln(os.Stderr, parseError)
 	}
 	return doc, err
