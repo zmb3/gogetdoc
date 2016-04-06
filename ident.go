@@ -5,26 +5,27 @@ import (
 	"fmt"
 	"go/ast"
 	"go/printer"
+	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/loader"
 )
 
-func findTypeSpec(decl *ast.GenDecl, symbol string) *ast.TypeSpec {
+func findTypeSpec(decl *ast.GenDecl, pos token.Pos) *ast.TypeSpec {
 	for _, spec := range decl.Specs {
 		typeSpec := spec.(*ast.TypeSpec)
-		if symbol == typeSpec.Name.Name {
+		if typeSpec.Pos() == pos {
 			return typeSpec
 		}
 	}
 	return nil
 }
 
-func findVarSpec(decl *ast.GenDecl, symbol string) *ast.ValueSpec {
+func findVarSpec(decl *ast.GenDecl, pos token.Pos) *ast.ValueSpec {
 	for _, spec := range decl.Specs {
 		varSpec := spec.(*ast.ValueSpec)
 		for _, ident := range varSpec.Names {
-			if ident.Name == symbol {
+			if ident.Pos() == pos {
 				return varSpec
 			}
 		}
@@ -51,14 +52,14 @@ func formatNode(n ast.Node, obj types.Object, prog *loader.Program) string {
 			// gendecl
 			switch n.Specs[0].(type) {
 			case *ast.TypeSpec:
-				spec := findTypeSpec(n, obj.Name())
+				spec := findTypeSpec(n, obj.Pos())
 				specCp := *spec
 				specCp.Doc = nil
 				cp.Specs = []ast.Spec{&specCp}
 				cp.Lparen = 0
 				cp.Rparen = 0
 			case *ast.ValueSpec:
-				spec := findVarSpec(n, obj.Name())
+				spec := findVarSpec(n, obj.Pos())
 				specCp := *spec
 				specCp.Doc = nil
 				cp.Specs = []ast.Spec{&specCp}
@@ -128,7 +129,7 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 		return nil, fmt.Errorf("No documentation found for %s", obj.Name())
 	}
 
-	for _, node := range nodes {
+	for i, node := range nodes {
 		//fmt.Printf("for %s: found %T\n%#v\n", id.Name, node, node)
 		switch n := node.(type) {
 		case *ast.FuncDecl:
@@ -141,7 +142,17 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 				constValue = c.Val().ExactString()
 			}
 			if n.Doc != nil {
-				doc.Doc = n.Doc.Text()
+				if len(n.Specs) > 0 {
+					switch n.Specs[0].(type) {
+					case *ast.TypeSpec:
+						doc.Doc = findTypeSpec(n, nodes[i-1].Pos()).Doc.Text()
+					case *ast.ValueSpec:
+						doc.Doc = findVarSpec(n, nodes[i-1].Pos()).Doc.Text()
+					}
+				}
+				if doc.Doc == "" {
+					doc.Doc = n.Doc.Text()
+				}
 				if constValue != "" {
 					doc.Doc += fmt.Sprintf("\nConstant Value: %s", constValue)
 				}
