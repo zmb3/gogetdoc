@@ -130,7 +130,7 @@ func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 		return nil, fmt.Errorf("gogetdoc: error loading program: %s", err.Error())
 	}
 	doc, err := DocForPos(lprog, filename, offset)
-	if err != nil {
+	if err != nil && parseError != nil {
 		fmt.Fprintln(os.Stderr, parseError)
 	}
 	return doc, err
