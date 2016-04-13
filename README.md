@@ -35,6 +35,17 @@ gogetdoc\ident.go:17: impossible type assertion:
                 want Parent() *"go/types".Scope
 ```
 
+Similarly, the tool relies on a recent enough version of
+`golang.org/x/tools`. Try using `go get -u` if you see an error of the
+following kind:
+
+```
+$ go get github.com/zmb3/gogetdoc
+# github.com/zmb3/gogetdoc
+gogetdoc/main.go:77: undefined: buildutil.ParseOverlayArchive
+gogetdoc/main.go:81: undefined: buildutil.OverlayContext
+```
+
 ## Usage
 
 Simply specify a filename and _byte_ offset with the `pos` flag:
