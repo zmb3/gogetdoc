@@ -2,8 +2,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,8 +10,6 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
-	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -78,11 +74,11 @@ func main() {
 
 	ctx := &build.Default
 	if *modified {
-		overlay, err := parseModified(os.Stdin)
+		overlay, err := buildutil.ParseOverlayArchive(os.Stdin)
 		if err != nil {
 			log.Fatalln("invalid archive:", err)
 		}
-		ctx = overlayContext(ctx, overlay)
+		ctx = buildutil.OverlayContext(ctx, overlay)
 	}
 
 	d, err := Run(ctx, filename, offset)
@@ -209,56 +205,6 @@ func parsePos(p string) (filename string, offset int64, err error) {
 	filename = p[:sep]
 	offset, err = strconv.ParseInt(p[sep+2:], 10, 32)
 	return
-}
-
-func parseModified(r io.Reader) (map[string][]byte, error) {
-	out := map[string][]byte{}
-	br := bufio.NewReader(r)
-	for {
-		name, err := br.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("error reading name in archive: %s", err)
-		}
-		name = filepath.Clean(strings.TrimSpace(name))
-		size, err := br.ReadString('\n')
-		if err != nil {
-			return nil, fmt.Errorf("error reading size in archive: %s", err)
-		}
-		size = strings.TrimSpace(size)
-		n, err := strconv.Atoi(size)
-		if err != nil {
-			return nil, fmt.Errorf("invalid size in archive: %s", err)
-		}
-		b := make([]byte, n)
-		_, err = io.ReadFull(br, b)
-		if err != nil {
-			return nil, fmt.Errorf("error reading archive content: %s", err)
-		}
-		out[name] = b
-	}
-	return out, nil
-}
-
-func overlayContext(ctx *build.Context, overlay map[string][]byte) *build.Context {
-	newCtx := *ctx
-	newCtx.OpenFile = func(name string) (io.ReadCloser, error) {
-		if b, ok := overlay[name]; ok {
-			return ioutil.NopCloser(bytes.NewReader(b)), nil
-		}
-
-		for path, b := range overlay {
-			if sameFile(name, path) {
-				return ioutil.NopCloser(bytes.NewReader(b)), nil
-			}
-		}
-
-		return buildutil.OpenFile(ctx, name)
-	}
-
-	return &newCtx
 }
 
 func sameFile(a, b string) bool {
