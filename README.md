@@ -52,7 +52,9 @@ Simply specify a filename and _byte_ offset with the `pos` flag:
 
 ```
 $ gogetdoc -pos $GOROOT/src/fmt/format.go:#6274
-func unicode/utf8.RuneCountInString(s string) (n int)
+import "unicode/utf8"
+
+func RuneCountInString(s string) (n int)
 
 RuneCountInString is like RuneCount but its input is a string.
 
