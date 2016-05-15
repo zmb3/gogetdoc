@@ -29,10 +29,7 @@ the following error:
 ```
 $ go get github.com/zmb3/gogetdoc
 # github.com/zmb3/gogetdoc
-gogetdoc\ident.go:17: impossible type assertion:
-        *"golang.org/x/tools/go/types".PkgName does not implement "go/types".Object (wrong type for Parent method)
-                have Parent() *"golang.org/x/tools/go/types".Scope
-                want Parent() *"go/types".Scope
+./ident.go:142: c.Val().ExactString undefined (type constant.Value has no field or method ExactString)
 ```
 
 Similarly, the tool relies on a recent enough version of
