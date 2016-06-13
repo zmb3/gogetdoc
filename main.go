@@ -26,6 +26,7 @@ var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	pos        = flag.String("pos", "", "Filename and byte offset of item to document, e.g. foo.go:#123")
 	modified   = flag.Bool("modified", false, "read an archive of modified files from standard input")
+	linelength = flag.Int("linelength", 80, "maximum length of a line in the output (in Unicode code points)")
 )
 
 const modifiedUsage = `
@@ -36,9 +37,8 @@ This allows editors to supply gogetdoc with the contents of their unsaved buffer
 `
 
 const (
-	indent     = ""
-	preIndent  = "    "
-	lineLength = 80
+	indent    = ""
+	preIndent = "    "
 )
 
 // Doc holds the resulting documentation for a particular item.
@@ -96,7 +96,7 @@ func main() {
 	if d.Doc == "" {
 		d.Doc = "Undocumented."
 	}
-	doc.ToText(os.Stdout, d.Doc, indent, preIndent, lineLength)
+	doc.ToText(os.Stdout, d.Doc, indent, preIndent, *linelength)
 }
 
 // Run is a wrapper for the gogetdoc command.  It is broken out of main for easier testing.
