@@ -51,6 +51,42 @@ type Foo struct {
 func (f Foo) Print() {
 	fmt.Println(f.FieldA, f.FieldB)
 }
+
+var slice = []int{0, 1, 2}
+
+func addInt(i int) {
+	slice = append(slice, i)
+	if f := float32(i); f > 42 {
+		fmt.Println("foo")
+	}
+}
+
+const (
+	A = iota
+	B
+	C
+)
+
+var slice2 = []*Foo{nil, nil, nil}
+
+func test() {
+	c := make(chan int)
+	if l := len(slice2); l > 0 {
+		c <- l
+	}
+	close(c)
+}
+
+func test2() error {
+	return nil
+}
+
+var (
+	// Alpha doc
+	Alpha = 0
+	Bravo = 1 // Bravo comment
+	Charlie = 2
+)
 `
 
 func TestIdent(t *testing.T) {
@@ -86,8 +122,24 @@ func TestIdent(t *testing.T) {
 		{tokFile.Pos(346), "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (use)
 		{tokFile.Pos(484), "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (definition)
 		{tokFile.Pos(144), "IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.\n"},                    // std func call (alias import)
+
+		// field doc/comment precedence
 		{tokFile.Pos(628), "FieldA has doc\n"},
 		{tokFile.Pos(637), "FieldB has a comment\n"},
+
+		// GenDecl doc/comment precedence
+		{tokFile.Pos(991), "Alpha doc"},
+		{tokFile.Pos(1002), "Bravo comment"},
+		{tokFile.Pos(1029), ""},
+
+		// builtins
+		{tokFile.Pos(947), "The error built-in interface type is the conventional"},
+		{tokFile.Pos(707), "The append built-in function appends elements to the end"},
+		{tokFile.Pos(734), "float32 is the set of all IEEE-754 32-bit floating-point numbers."},
+		{tokFile.Pos(793), "iota is a predeclared identifier representing the untyped integer ordinal"},
+		{tokFile.Pos(832), "nil is a predeclared identifier representing the zero"},
+		{tokFile.Pos(886), "The len built-in function returns the length of v"},
+		{tokFile.Pos(923), "The close built-in function closes a channel, which must"},
 	}
 TestLoop:
 	for _, test := range tests {
@@ -98,12 +150,12 @@ TestLoop:
 				if err != nil {
 					t.Fatal(err)
 				}
-				if !strings.EqualFold(test.Doc, doc.Doc) {
+				if !strings.HasPrefix(doc.Doc, test.Doc) {
 					t.Errorf("Want '%s', got '%s'\n", test.Doc, doc.Doc)
 				}
 				continue TestLoop
 			}
 		}
-		t.Errorf("Coudln't find *ast.Ident at %s\n", prog.Fset.Position(test.Pos))
+		t.Errorf("Couldn't find *ast.Ident at %s\n", prog.Fset.Position(test.Pos))
 	}
 }
