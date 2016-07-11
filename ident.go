@@ -141,23 +141,35 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 			if c, ok := obj.(*types.Const); ok {
 				constValue = c.Val().ExactString()
 			}
-			if n.Doc != nil {
-				if len(n.Specs) > 0 {
-					switch n.Specs[0].(type) {
-					case *ast.TypeSpec:
-						doc.Doc = findTypeSpec(n, nodes[i-1].Pos()).Doc.Text()
-					case *ast.ValueSpec:
-						doc.Doc = findVarSpec(n, nodes[i-1].Pos()).Doc.Text()
+
+			if len(n.Specs) > 0 {
+				switch n.Specs[0].(type) {
+				case *ast.TypeSpec:
+					spec := findTypeSpec(n, nodes[i-1].Pos())
+					if spec.Doc != nil {
+						doc.Doc = spec.Doc.Text()
+					} else if spec.Comment != nil {
+						doc.Doc = spec.Comment.Text()
+					}
+				case *ast.ValueSpec:
+					spec := findVarSpec(n, nodes[i-1].Pos())
+					if spec.Doc != nil {
+						doc.Doc = spec.Doc.Text()
+					} else if spec.Comment != nil {
+						doc.Doc = spec.Comment.Text()
 					}
 				}
-				if doc.Doc == "" {
-					doc.Doc = n.Doc.Text()
-				}
-				if constValue != "" {
-					doc.Doc += fmt.Sprintf("\nConstant Value: %s", constValue)
-				}
-				return doc, nil
 			}
+
+			// if we didn't find doc for the spec, check the overall GenDecl
+			if doc.Doc == "" && n.Doc != nil {
+				doc.Doc = n.Doc.Text()
+			}
+			if constValue != "" {
+				doc.Doc += fmt.Sprintf("\nConstant Value: %s", constValue)
+			}
+
+			return doc, nil
 		case *ast.Field:
 			// check the doc first, if not present, then look for a comment
 			if n.Doc != nil {
