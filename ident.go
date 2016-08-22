@@ -103,6 +103,10 @@ func formatNode(n ast.Node, obj types.Object, prog *loader.Program) string {
 func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*Doc, error) {
 	// get definition of identifier
 	obj := info.ObjectOf(id)
+	var pos string
+	if p := obj.Pos(); p.IsValid() {
+		pos = prog.Fset.Position(p).String()
+	}
 
 	pkgPath := ""
 	if obj.Pkg() != nil {
@@ -124,6 +128,7 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 				Name:   obj.Name(),
 				Doc:    doc,
 				Decl:   decl,
+				Pos:    pos,
 			}, nil
 		}
 		return nil, fmt.Errorf("No documentation found for %s", obj.Name())
@@ -139,6 +144,7 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 			Import: pkgPath,
 			Name:   obj.Name(),
 			Decl:   formatNode(node, obj, prog),
+			Pos:    pos,
 		}
 		break
 	}

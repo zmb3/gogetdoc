@@ -2,6 +2,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -27,6 +29,7 @@ var (
 	pos        = flag.String("pos", "", "Filename and byte offset of item to document, e.g. foo.go:#123")
 	modified   = flag.Bool("modified", false, "read an archive of modified files from standard input")
 	linelength = flag.Int("linelength", 80, "maximum length of a line in the output (in Unicode code points)")
+	jsonOutput = flag.Bool("json", false, "enable extended JSON output")
 )
 
 const modifiedUsage = `
@@ -43,10 +46,24 @@ const (
 
 // Doc holds the resulting documentation for a particular item.
 type Doc struct {
-	Import string
-	Name   string
-	Decl   string
-	Doc    string
+	Name   string `json:"name"`
+	Import string `json:"import"`
+	Decl   string `json:"decl"`
+	Doc    string `json:"doc"`
+	Pos    string `json:"pos"`
+}
+
+func (d *Doc) String() string {
+	buf := &bytes.Buffer{}
+	if d.Import != "" {
+		fmt.Fprintf(buf, "import \"%s\"\n\n", d.Import)
+	}
+	fmt.Fprintf(buf, "%s\n", d.Decl)
+	if d.Doc == "" {
+		d.Doc = "Undocumented."
+	}
+	doc.ToText(buf, d.Doc, indent, preIndent, *linelength)
+	return buf.String()
 }
 
 func main() {
@@ -86,17 +103,12 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	// TODO: output format
-	if d.Import != "" {
-		fmt.Printf("import \"%s\"\n", d.Import)
-		fmt.Println()
+
+	if *jsonOutput {
+		json.NewEncoder(os.Stdout).Encode(d)
+	} else {
+		fmt.Println(d.String())
 	}
-	fmt.Println(d.Decl)
-	fmt.Println()
-	if d.Doc == "" {
-		d.Doc = "Undocumented."
-	}
-	doc.ToText(os.Stdout, d.Doc, indent, preIndent, *linelength)
 }
 
 // Run is a wrapper for the gogetdoc command.  It is broken out of main for easier testing.

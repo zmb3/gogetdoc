@@ -57,6 +57,17 @@ RuneCountInString is like RuneCount but its input is a string.
 
 ```
 
+The `-json` flag can be used to enable the extended JSON output.
+In this mode, a JSON object will be written to stdout instead of the raw doc.
+
+    {
+      "name": "RuneCountInString",
+      "import":  "unicode/utf8",
+      "decl": "func RuneCountInString(s string) (n int)",
+      "doc": "RuneCountInString is like RuneCount but its input is a string.\n",
+      "pos": "/usr/local/Cellar/go/1.7/libexec/src/unicode/utf8/utf8.go:409:6"
+    }
+
 ### Unsaved files
 
 `gogetdoc` supports the same archive format as `guru` (formerly `oracle`).
