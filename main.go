@@ -58,7 +58,7 @@ func (d *Doc) String() string {
 	if d.Import != "" {
 		fmt.Fprintf(buf, "import \"%s\"\n\n", d.Import)
 	}
-	fmt.Fprintf(buf, "%s\n", d.Decl)
+	fmt.Fprintf(buf, "%s\n\n", d.Decl)
 	if d.Doc == "" {
 		d.Doc = "Undocumented."
 	}
