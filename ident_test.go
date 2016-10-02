@@ -2,8 +2,13 @@ package main
 
 import (
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
+	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -158,4 +163,73 @@ TestLoop:
 		}
 		t.Errorf("Couldn't find *ast.Ident at %s\n", prog.Fset.Position(test.Pos))
 	}
+}
+
+func TestVendoredIdent(t *testing.T) {
+	newGopath, err := ioutil.TempDir(".", "gogetdoc-gopath")
+	if err != nil {
+		t.Fatal(err)
+	}
+	newGopath, _ = filepath.Abs(newGopath)
+	progDir := filepath.Join(newGopath, "src", "github.com", "zmb3", "prog")
+	pkgDir := filepath.Join(progDir, "vendor", "github.com", "zmb3", "vp")
+
+	err = os.MkdirAll(pkgDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	} else {
+		defer func() {
+			os.RemoveAll(newGopath)
+		}()
+	}
+
+	err = copyFile(filepath.Join(progDir, "main.go"), filepath.FromSlash("./testdata/main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = copyFile(filepath.Join(pkgDir, "vp.go"), filepath.FromSlash("./testdata/vp.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Chdir(progDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		os.Chdir(cwd)
+	}()
+
+	ctx := build.Default
+	ctx.GOPATH = newGopath
+	doc, err := Run(&ctx, "main.go", 63)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "github.com/zmb3/vp"
+	if doc.Import != want {
+		t.Errorf("want %s, got %s", want, doc.Import)
+	}
+}
+
+func copyFile(dst, src string) error {
+	orig, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer orig.Close()
+
+	copy, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer copy.Close()
+
+	_, err = io.Copy(copy, orig)
+	return err
 }

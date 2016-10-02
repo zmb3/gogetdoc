@@ -11,6 +11,7 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"strings"
 
 	"golang.org/x/tools/go/loader"
 )
@@ -141,7 +142,7 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 			continue
 		}
 		doc = &Doc{
-			Import: pkgPath,
+			Import: stripVendorFromImportPath(pkgPath),
 			Name:   obj.Name(),
 			Decl:   formatNode(node, obj, prog),
 			Pos:    pos,
@@ -277,4 +278,13 @@ func findInBuiltin(name string, obj types.Object, prog *loader.Program) (docstri
 	}
 
 	return "", ""
+}
+
+func stripVendorFromImportPath(ip string) string {
+	vendor := "/vendor/"
+	l := len(vendor)
+	if i := strings.LastIndex(ip, vendor); i != -1 {
+		return ip[i+l:]
+	}
+	return ip
 }
