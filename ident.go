@@ -101,7 +101,7 @@ func formatNode(n ast.Node, obj types.Object, prog *loader.Program) string {
 }
 
 // IdentDoc attempts to get the documentation for a *ast.Ident.
-func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*Doc, error) {
+func IdentDoc(ctxt *build.Context, id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*Doc, error) {
 	// get definition of identifier
 	obj := info.ObjectOf(id)
 	var pos string
@@ -116,7 +116,7 @@ func IdentDoc(id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*D
 
 	// handle packages imported under a different name
 	if p, ok := obj.(*types.PkgName); ok {
-		return PackageDoc(prog.Fset, p.Imported().Path())
+		return PackageDoc(ctxt, prog.Fset, "", p.Imported().Path()) // SRCDIR TODO TODO
 	}
 
 	_, nodes, _ := prog.PathEnclosingInterval(obj.Pos(), obj.Pos())

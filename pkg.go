@@ -20,8 +20,8 @@ func ImportPath(is *ast.ImportSpec) string {
 
 // PackageDoc gets the documentation for the package with the specified import
 // path and writes it to out.
-func PackageDoc(fset *token.FileSet, importPath string) (*Doc, error) {
-	buildPkg, err := build.Import(importPath, "", build.ImportComment)
+func PackageDoc(ctxt *build.Context, fset *token.FileSet, srcDir string, importPath string) (*Doc, error) {
+	buildPkg, err := ctxt.Import(importPath, srcDir, build.ImportComment)
 	if err != nil {
 		return nil, err
 	}

@@ -140,7 +140,7 @@ func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gogetdoc: error loading program: %s", err.Error())
 	}
-	doc, err := DocForPos(lprog, filename, offset)
+	doc, err := DocForPos(ctx, lprog, filename, offset)
 	if err != nil && parseError != nil {
 		fmt.Fprintln(os.Stderr, parseError)
 	}
@@ -148,7 +148,7 @@ func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 }
 
 // DocForPos attempts to get the documentation for an item given a filename and byte offset.
-func DocForPos(lprog *loader.Program, filename string, offset int64) (*Doc, error) {
+func DocForPos(ctxt *build.Context, lprog *loader.Program, filename string, offset int64) (*Doc, error) {
 	tokFile := FileFromProgram(lprog, filename)
 	if tokFile == nil {
 		return nil, fmt.Errorf("gogetdoc: couldn't find %s in program", filename)
@@ -159,13 +159,17 @@ func DocForPos(lprog *loader.Program, filename string, offset int64) (*Doc, erro
 	for _, node := range nodes {
 		switch i := node.(type) {
 		case *ast.ImportSpec:
-			return PackageDoc(lprog.Fset, ImportPath(i))
+			abs, err := filepath.Abs(filename)
+			if err != nil {
+				return nil, err
+			}
+			return PackageDoc(ctxt, lprog.Fset, filepath.Dir(abs), ImportPath(i))
 		case *ast.Ident:
 			// if we can't find the object denoted by the identifier, keep searching)
 			if obj := pkgInfo.ObjectOf(i); obj == nil {
 				continue
 			}
-			return IdentDoc(i, pkgInfo, lprog)
+			return IdentDoc(ctxt, i, pkgInfo, lprog)
 		case *ast.File:
 			if i.Doc != nil {
 				return &Doc{

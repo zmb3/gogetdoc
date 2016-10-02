@@ -151,7 +151,7 @@ TestLoop:
 		info, nodes, _ := prog.PathEnclosingInterval(test.Pos, test.Pos)
 		for i := range nodes {
 			if ident, ok := nodes[i].(*ast.Ident); ok {
-				doc, err := IdentDoc(ident, info, prog)
+				doc, err := IdentDoc(&build.Default, ident, info, prog)
 				if err != nil {
 					t.Fatal(err)
 				}

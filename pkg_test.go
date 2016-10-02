@@ -1,8 +1,12 @@
 package main
 
 import (
+	"go/build"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -49,7 +53,7 @@ func TestPackages(t *testing.T) {
 		{79, "Package math provides basic constants and mathematical functions"}, // aliased import
 	}
 	for _, test := range tests {
-		d, err := DocForPos(prog, "main.go", test.Offset)
+		d, err := DocForPos(&build.Default, prog, "main.go", test.Offset)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -83,11 +87,61 @@ func TestPackageDoc(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	doc, err := PackageDoc(fset, "fmt")
+	doc, err := PackageDoc(&build.Default, fset, ".", "fmt")
 	if err != nil {
 		t.Error(err)
 	}
 	if !strings.HasPrefix(doc.Decl, "package fmt") {
 		t.Errorf("Want 'package fmt', got %s\n", doc.Decl)
+	}
+}
+
+func TestVendoredPackageImport(t *testing.T) {
+	newGopath, err := ioutil.TempDir(".", "gogetdoc-gopath")
+	if err != nil {
+		t.Fatal(err)
+	}
+	newGopath, _ = filepath.Abs(newGopath)
+	progDir := filepath.Join(newGopath, "src", "github.com", "zmb3", "prog")
+	pkgDir := filepath.Join(progDir, "vendor", "github.com", "zmb3", "vp")
+
+	err = os.MkdirAll(pkgDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	} else {
+		defer func() {
+			os.RemoveAll(newGopath)
+		}()
+	}
+
+	err = copyFile(filepath.Join(progDir, "main.go"), filepath.FromSlash("./testdata/main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = copyFile(filepath.Join(pkgDir, "vp.go"), filepath.FromSlash("./testdata/vp.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Chdir(progDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		os.Chdir(cwd)
+	}()
+
+	ctx := build.Default
+	ctx.GOPATH = newGopath
+	doc, err := Run(&ctx, "main.go", 39)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Decl != "package vp" {
+		t.Errorf("want 'package vp', got '%s'", doc.Decl)
 	}
 }
