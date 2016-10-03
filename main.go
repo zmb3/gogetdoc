@@ -25,11 +25,12 @@ import (
 )
 
 var (
-	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-	pos        = flag.String("pos", "", "Filename and byte offset of item to document, e.g. foo.go:#123")
-	modified   = flag.Bool("modified", false, "read an archive of modified files from standard input")
-	linelength = flag.Int("linelength", 80, "maximum length of a line in the output (in Unicode code points)")
-	jsonOutput = flag.Bool("json", false, "enable extended JSON output")
+	cpuprofile           = flag.String("cpuprofile", "", "write cpu profile to file")
+	pos                  = flag.String("pos", "", "Filename and byte offset of item to document, e.g. foo.go:#123")
+	modified             = flag.Bool("modified", false, "read an archive of modified files from standard input")
+	linelength           = flag.Int("linelength", 80, "maximum length of a line in the output (in Unicode code points)")
+	jsonOutput           = flag.Bool("json", false, "enable extended JSON output")
+	showUnexportedFields = flag.Bool("u", false, "show unexported fields")
 )
 
 const modifiedUsage = `

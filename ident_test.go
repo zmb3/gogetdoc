@@ -92,6 +92,11 @@ var (
 	Bravo = 1 // Bravo comment
 	Charlie = 2
 )
+
+type HasUnexported struct {
+	Visible string			// Visible is an exported field
+	notVisible string		// notVisible is an unexported field
+}
 `
 
 func TestIdent(t *testing.T) {
@@ -162,6 +167,40 @@ TestLoop:
 			}
 		}
 		t.Errorf("Couldn't find *ast.Ident at %s\n", prog.Fset.Position(test.Pos))
+	}
+}
+
+func TestUnexportedFields(t *testing.T) {
+	t.Parallel()
+	conf := &loader.Config{
+		ParserMode: parser.ParseComments,
+	}
+	astFile, err := conf.ParseFile("test.go", funcDecl)
+	if err != nil {
+		t.Error(err)
+	}
+
+	conf.CreateFromFiles("main", astFile)
+	prog, err := conf.Load()
+	if err != nil {
+		t.Error(err)
+	}
+
+	tokFile := FileFromProgram(prog, "test.go")
+	if tokFile == nil {
+		t.Error("Couldn't get token.File from program")
+	}
+
+	for _, showUnexported := range []bool{true, false} {
+		*showUnexportedFields = showUnexported
+		doc, err := DocForPos(&build.Default, prog, "test.go", 1052)
+		if err != nil {
+			t.Error(err)
+		}
+		hasUnexportedField := strings.Contains(doc.Decl, "notVisible")
+		if hasUnexportedField != *showUnexportedFields {
+			t.Errorf("show unexported fields is %v, found unexported field is %v", showUnexported, hasUnexportedField)
+		}
 	}
 }
 

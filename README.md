@@ -97,4 +97,7 @@ and help coming up with the implementation.
 
 ## License
 
-3-Clause BSD license - see the LICENSE file for details.
+`gogetdoc` is licensed under the 3-Clause BSD license - see the LICENSE file for details.
+
+Portions of this code are borrowed from the Go project and are 
+Copyright 2015 The Go Authors.

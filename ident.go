@@ -40,8 +40,8 @@ func findVarSpec(decl *ast.GenDecl, pos token.Pos) *ast.ValueSpec {
 
 func formatNode(n ast.Node, obj types.Object, prog *loader.Program) string {
 	var nc ast.Node
-	// Render a copy of the node with no documentation. We
-	// emit the documentation ourself.
+	// Render a copy of the node with no documentation.
+	// We emit the documentation ourself.
 	switch n := n.(type) {
 	case *ast.FuncDecl:
 		cp := *n
@@ -60,6 +60,9 @@ func formatNode(n ast.Node, obj types.Object, prog *loader.Program) string {
 				spec := findTypeSpec(n, obj.Pos())
 				if spec != nil {
 					specCp := *spec
+					if *showUnexportedFields == false {
+						trimUnexportedElems(&specCp)
+					}
 					specCp.Doc = nil
 					cp.Specs = []ast.Spec{&specCp}
 				}
