@@ -177,6 +177,13 @@ func DocForPos(ctxt *build.Context, lprog *loader.Program, filename string, offs
 					Doc: i.Doc.Text(),
 				}, nil
 			}
+			for _, f := range pkgInfo.Files {
+				if f.Doc != nil {
+					return &Doc{
+						Doc: f.Doc.Text(),
+					}, nil
+				}
+			}
 		}
 	}
 	return nil, errors.New("gogetdoc: no documentation found")
