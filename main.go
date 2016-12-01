@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
 	"strings"
@@ -68,6 +69,9 @@ func (d *Doc) String() string {
 }
 
 func main() {
+	// disable GC as gogetdoc is a short-lived program
+	debug.SetGCPercent(-1)
+
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s\n", os.Args[0])
 		flag.PrintDefaults()
