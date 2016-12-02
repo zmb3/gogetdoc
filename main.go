@@ -12,6 +12,7 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"log"
 	"os"
 	"path/filepath"
@@ -95,6 +96,7 @@ func main() {
 	}
 
 	ctx := &build.Default
+	ctx.CgoEnabled = false
 	if *modified {
 		overlay, err := buildutil.ParseOverlayArchive(os.Stdin)
 		if err != nil {
@@ -126,21 +128,30 @@ func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gogetdoc: couldn't get package for %s: %s", filename, err.Error())
 	}
+
+	var parseError error
 	conf := &loader.Config{
 		Build:               ctx,
 		ParserMode:          parser.ParseComments,
 		TypeCheckFuncBodies: func(pkg string) bool { return pkg == bp.ImportPath },
 		AllowErrors:         true,
+		TypeChecker: types.Config{
+			DisableUnusedImportCheck: true,
+			Error: func(err error) {
+				if parseError != nil {
+					return
+				}
+				parseError = err
+			},
+		},
 	}
 
-	var parseError error
-	conf.TypeChecker.Error = func(err error) {
-		if parseError != nil {
-			return
-		}
-		parseError = err
+	if isTestFile := strings.HasSuffix(filename, "_test.go"); isTestFile {
+		conf.ImportWithTests(bp.ImportPath)
+	} else {
+		conf.Import(bp.ImportPath)
 	}
-	conf.ImportWithTests(bp.ImportPath)
+
 	lprog, err := conf.Load()
 	if err != nil {
 		return nil, fmt.Errorf("gogetdoc: error loading program: %s", err.Error())
