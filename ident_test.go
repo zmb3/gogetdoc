@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"go/ast"
 	"go/build"
 	"go/parser"
@@ -212,7 +213,12 @@ func TestIssue20(t *testing.T) {
 	newGopath, _ = filepath.Abs(newGopath)
 	defer os.RemoveAll(newGopath)
 
-	fooDir := filepath.Join(newGopath, "src", "github.com", "zmb3", "prog")
+	fooDir := filepath.Join(newGopath, "src", "github.com", "zmb3", "foo")
+	err = os.MkdirAll(fooDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	err = copyFile(filepath.Join(fooDir, "issue20.go"), filepath.FromSlash("./testdata/issue20.go"))
 	if err != nil {
 		t.Fatal(err)
@@ -318,13 +324,13 @@ func TestVendoredIdent(t *testing.T) {
 func copyFile(dst, src string) error {
 	orig, err := os.Open(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("copying file %s: %v", src, err)
 	}
 	defer orig.Close()
 
 	copy, err := os.Create(dst)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating copy %s: %v", dst, err)
 	}
 	defer copy.Close()
 
