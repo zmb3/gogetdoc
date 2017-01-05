@@ -4,14 +4,14 @@ import "fmt"
 
 // Foo is a test function.
 func Foo() {
-	words := []string {	}{}
+	words := []string{}
 	for _, word := range words {
-		fmt.Println(words)
+		fmt.Println(word)
 	}
 }
 
 func Bar() {
-	tests := []struct{
+	tests := []struct {
 		Name string
 		args string
 	}{

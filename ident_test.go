@@ -210,19 +210,10 @@ func TestIssue20(t *testing.T) {
 		t.Fatal(err)
 	}
 	newGopath, _ = filepath.Abs(newGopath)
-	progDir := filepath.Join(newGopath, "src", "github.com", "zmb3", "prog")
-	pkgDir := filepath.Join(progDir, "vendor", "github.com", "zmb3", "vp")
+	defer os.RemoveAll(newGopath)
 
-	err = os.MkdirAll(pkgDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	} else {
-		defer func() {
-			os.RemoveAll(newGopath)
-		}()
-	}
-
-	err = copyFile(filepath.Join(progDir, "issue20.go"), filepath.FromSlash("./testdata/issue20.go"))
+	fooDir := filepath.Join(newGopath, "src", "github.com", "zmb3", "prog")
+	err = copyFile(filepath.Join(fooDir, "issue20.go"), filepath.FromSlash("./testdata/issue20.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +222,7 @@ func TestIssue20(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = os.Chdir(progDir)
+	err = os.Chdir(fooDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +233,7 @@ func TestIssue20(t *testing.T) {
 	ctx := build.Default
 	ctx.GOPATH = newGopath
 	t.Run("named type", func(t *testing.T) {
-		doc, err := Run(&ctx, "issue20.go", 116)
+		doc, err := Run(&ctx, "issue20.go", 114)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -258,7 +249,7 @@ func TestIssue20(t *testing.T) {
 	})
 
 	t.Run("unnammed type", func(t *testing.T) {
-		doc, err := Run(&ctx, "issue20.go", 285)
+		doc, err := Run(&ctx, "issue20.go", 281)
 		if err != nil {
 			t.Fatal(err)
 		}
