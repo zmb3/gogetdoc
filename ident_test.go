@@ -199,9 +199,77 @@ func TestUnexportedFields(t *testing.T) {
 		}
 		hasUnexportedField := strings.Contains(doc.Decl, "notVisible")
 		if hasUnexportedField != *showUnexportedFields {
-			t.Errorf("show unexported fields is %v, found unexported field is %v", showUnexported, hasUnexportedField)
+			t.Errorf("show unexported fields is %v, but got %q", showUnexported, doc.Decl)
 		}
 	}
+}
+
+func TestIssue20(t *testing.T) {
+	newGopath, err := ioutil.TempDir(".", "gogetdoc-gopath")
+	if err != nil {
+		t.Fatal(err)
+	}
+	newGopath, _ = filepath.Abs(newGopath)
+	progDir := filepath.Join(newGopath, "src", "github.com", "zmb3", "prog")
+	pkgDir := filepath.Join(progDir, "vendor", "github.com", "zmb3", "vp")
+
+	err = os.MkdirAll(pkgDir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	} else {
+		defer func() {
+			os.RemoveAll(newGopath)
+		}()
+	}
+
+	err = copyFile(filepath.Join(progDir, "issue20.go"), filepath.FromSlash("./testdata/issue20.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Chdir(progDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		os.Chdir(cwd)
+	}()
+
+	ctx := build.Default
+	ctx.GOPATH = newGopath
+	t.Run("named type", func(t *testing.T) {
+		doc, err := Run(&ctx, "issue20.go", 116)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := "var words []string"
+		if doc.Decl != want {
+			t.Errorf("want %s, got %s", want, doc.Decl)
+		}
+
+		if doc.Doc != "" {
+			t.Errorf("expect doc to be empty, but got %q", doc.Doc)
+		}
+	})
+
+	t.Run("unnammed type", func(t *testing.T) {
+		doc, err := Run(&ctx, "issue20.go", 285)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "var tests []struct{Name string; args string}"
+		if doc.Decl != want {
+			t.Errorf("want %s, got %s", want, doc.Decl)
+		}
+		if doc.Doc != "" {
+			t.Errorf("expect doc to be empty, but got %q", doc.Doc)
+		}
+	})
 }
 
 func TestVendoredIdent(t *testing.T) {

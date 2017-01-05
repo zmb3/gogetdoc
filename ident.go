@@ -49,6 +49,23 @@ func formatNode(n ast.Node, obj types.Object, prog *loader.Program) string {
 		// Don't print the whole function body
 		cp.Body = nil
 		nc = &cp
+	case *ast.Field:
+		// Not supported by go/printer
+
+		// TODO(dominikh): Methods in interfaces are syntactically
+		// represented as fields. Using types.Object.String for those
+		// causes them to look different from real functions.
+		// go/printer doesn't include the import paths in names, while
+		// Object.String does. Fix that.
+
+		return obj.String()
+	case *ast.TypeSpec:
+		cp := *n
+		if *showUnexportedFields == false {
+			trimUnexportedElems(&cp)
+		}
+		cp.Doc = nil
+		nc = &cp
 	case *ast.GenDecl:
 		cp := *n
 		cp.Doc = nil
@@ -80,16 +97,7 @@ func formatNode(n ast.Node, obj types.Object, prog *loader.Program) string {
 			}
 		}
 		nc = &cp
-	case *ast.Field:
-		// Not supported by go/printer
 
-		// TODO(dominikh): Methods in interfaces are syntactically
-		// represented as fields. Using types.Object.String for those
-		// causes them to look different from real functions.
-		// go/printer doesn't include the import paths in names, while
-		// Object.String does. Fix that.
-
-		return obj.String()
 	default:
 		return obj.String()
 	}
@@ -140,9 +148,13 @@ func IdentDoc(ctxt *build.Context, id *ast.Ident, info *loader.PackageInfo, prog
 	var doc *Doc
 	for _, node := range nodes {
 		switch node.(type) {
-		case *ast.FuncDecl, *ast.GenDecl, *ast.Field:
-		default:
+		case *ast.Ident:
+			// continue ascending AST (searching for parent node of the identifier))
 			continue
+		case *ast.FuncDecl, *ast.GenDecl, *ast.Field, *ast.TypeSpec, *ast.ValueSpec:
+			// found the parent node
+		default:
+			break
 		}
 		doc = &Doc{
 			Import: stripVendorFromImportPath(pkgPath),
@@ -157,35 +169,43 @@ func IdentDoc(ctxt *build.Context, id *ast.Ident, info *loader.PackageInfo, prog
 		return nil, fmt.Errorf("No documentation found for %s", obj.Name())
 	}
 
-	for i, node := range nodes {
+	for _, node := range nodes {
 		//fmt.Printf("for %s: found %T\n%#v\n", id.Name, node, node)
 		switch n := node.(type) {
+		case *ast.Ident:
+			continue
 		case *ast.FuncDecl:
 			doc.Doc = n.Doc.Text()
 			return doc, nil
+		case *ast.Field:
+			if n.Doc != nil {
+				doc.Doc = n.Doc.Text()
+			} else if n.Comment != nil {
+				doc.Doc = n.Comment.Text()
+			}
+			return doc, nil
+		case *ast.TypeSpec:
+			if n.Doc != nil {
+				doc.Doc = n.Doc.Text()
+				return doc, nil
+			}
+			if n.Comment != nil {
+				doc.Doc = n.Comment.Text()
+				return doc, nil
+			}
+		case *ast.ValueSpec:
+			if n.Doc != nil {
+				doc.Doc = n.Doc.Text()
+				return doc, nil
+			}
+			if n.Comment != nil {
+				doc.Doc = n.Comment.Text()
+				return doc, nil
+			}
 		case *ast.GenDecl:
 			constValue := ""
 			if c, ok := obj.(*types.Const); ok {
 				constValue = c.Val().ExactString()
-			}
-
-			if len(n.Specs) > 0 {
-				switch n.Specs[0].(type) {
-				case *ast.TypeSpec:
-					spec := findTypeSpec(n, nodes[i-1].Pos())
-					if spec.Doc != nil {
-						doc.Doc = spec.Doc.Text()
-					} else if spec.Comment != nil {
-						doc.Doc = spec.Comment.Text()
-					}
-				case *ast.ValueSpec:
-					spec := findVarSpec(n, nodes[i-1].Pos())
-					if spec.Doc != nil {
-						doc.Doc = spec.Doc.Text()
-					} else if spec.Comment != nil {
-						doc.Doc = spec.Comment.Text()
-					}
-				}
 			}
 
 			// if we didn't find doc for the spec, check the overall GenDecl
@@ -195,17 +215,9 @@ func IdentDoc(ctxt *build.Context, id *ast.Ident, info *loader.PackageInfo, prog
 			if constValue != "" {
 				doc.Doc += fmt.Sprintf("\nConstant Value: %s", constValue)
 			}
-
 			return doc, nil
-		case *ast.Field:
-			// check the doc first, if not present, then look for a comment
-			if n.Doc != nil {
-				doc.Doc = n.Doc.Text()
-				return doc, nil
-			} else if n.Comment != nil {
-				doc.Doc = n.Comment.Text()
-				return doc, nil
-			}
+		default:
+			return doc, nil
 		}
 	}
 	return doc, nil
