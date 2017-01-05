@@ -122,35 +122,39 @@ func TestIdent(t *testing.T) {
 	}
 
 	tests := []struct {
-		Pos token.Pos
-		Doc string
+		Pos  token.Pos
+		Doc  string
+		Decl string
 	}{
-		{tokFile.Pos(191), "SayHello says hello.\n"},                                                              // method call
-		{tokFile.Pos(205), "SayGoodbye says goodbye.\n"},                                                          // function call
-		{tokFile.Pos(305), "Message is a message.\n"},                                                             // var (use)
-		{tokFile.Pos(388), "Message is a message.\n"},                                                             // var (definition)
-		{tokFile.Pos(318), "Sprintf formats according to a format specifier and returns the resulting string.\n"}, // std func
-		{tokFile.Pos(346), "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (use)
-		{tokFile.Pos(484), "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (definition)
-		{tokFile.Pos(144), "IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.\n"},                    // std func call (alias import)
+		{Pos: tokFile.Pos(191), Doc: "SayHello says hello.\n"},                                                              // method call
+		{Pos: tokFile.Pos(205), Doc: "SayGoodbye says goodbye.\n"},                                                          // function call
+		{Pos: tokFile.Pos(305), Doc: "Message is a message.\n"},                                                             // var (use)
+		{Pos: tokFile.Pos(388), Doc: "Message is a message.\n"},                                                             // var (definition)
+		{Pos: tokFile.Pos(318), Doc: "Sprintf formats according to a format specifier and returns the resulting string.\n"}, // std func
+		{Pos: tokFile.Pos(346), Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (use)
+		{Pos: tokFile.Pos(484), Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (definition)
+		{Pos: tokFile.Pos(144), Doc: "IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.\n"},                    // std func call (alias import)
 
 		// field doc/comment precedence
-		{tokFile.Pos(628), "FieldA has doc\n"},
-		{tokFile.Pos(637), "FieldB has a comment\n"},
+		{Pos: tokFile.Pos(628), Doc: "FieldA has doc\n"},
+		{Pos: tokFile.Pos(637), Doc: "FieldB has a comment\n"},
 
 		// GenDecl doc/comment precedence
-		{tokFile.Pos(991), "Alpha doc"},
-		{tokFile.Pos(1002), "Bravo comment"},
-		{tokFile.Pos(1029), ""},
+		{Pos: tokFile.Pos(991), Doc: "Alpha doc"},
+		{Pos: tokFile.Pos(1002), Doc: "Bravo comment"},
+		{Pos: tokFile.Pos(1029)},
 
 		// builtins
-		{tokFile.Pos(947), "The error built-in interface type is the conventional"},
-		{tokFile.Pos(707), "The append built-in function appends elements to the end"},
-		{tokFile.Pos(734), "float32 is the set of all IEEE-754 32-bit floating-point numbers."},
-		{tokFile.Pos(793), "iota is a predeclared identifier representing the untyped integer ordinal"},
-		{tokFile.Pos(832), "nil is a predeclared identifier representing the zero"},
-		{tokFile.Pos(886), "The len built-in function returns the length of v"},
-		{tokFile.Pos(923), "The close built-in function closes a channel, which must"},
+		{Pos: tokFile.Pos(947), Doc: "The error built-in interface type is the conventional"},
+		{Pos: tokFile.Pos(707), Doc: "The append built-in function appends elements to the end"},
+		{Pos: tokFile.Pos(734), Doc: "float32 is the set of all IEEE-754 32-bit floating-point numbers."},
+		{Pos: tokFile.Pos(793), Doc: "iota is a predeclared identifier representing the untyped integer ordinal"},
+		{Pos: tokFile.Pos(832), Doc: "nil is a predeclared identifier representing the zero"},
+		{Pos: tokFile.Pos(886), Doc: "The len built-in function returns the length of v"},
+		{Pos: tokFile.Pos(923), Doc: "The close built-in function closes a channel, which must"},
+
+		// decl
+		{Pos: tokFile.Pos(596), Decl: "type Foo struct {"},
 	}
 TestLoop:
 	for _, test := range tests {
@@ -163,6 +167,9 @@ TestLoop:
 				}
 				if !strings.HasPrefix(doc.Doc, test.Doc) {
 					t.Errorf("Want '%s', got '%s'\n", test.Doc, doc.Doc)
+				}
+				if test.Decl != "" && !strings.HasPrefix(doc.Decl, test.Decl) {
+					t.Errorf("Decl: want '%s', got '%s'\n", test.Decl, doc.Decl)
 				}
 				continue TestLoop
 			}
