@@ -136,6 +136,25 @@ func TestPackageDoc(t *testing.T) {
 	if !strings.HasPrefix(doc.Decl, "package fmt") {
 		t.Errorf("Want 'package fmt', got %s\n", doc.Decl)
 	}
+	if doc.Import != "fmt" {
+		t.Errorf("want import \"fmt\", got %q", doc.Import)
+	}
+}
+
+func TestPackageDocDecl(t *testing.T) {
+	t.Parallel()
+	fset := token.NewFileSet()
+	_, err := parser.ParseFile(fset, "main.go", nil, parser.ImportsOnly)
+	if err != nil {
+		t.Error(err)
+	}
+	doc, err := PackageDoc(&build.Default, fset, ".", "fmt")
+	if err != nil {
+		t.Error(err)
+	}
+	if !strings.HasPrefix(doc.Decl, "package") {
+		t.Errorf("package decl must always start with \"package\", got %q", doc.Decl)
+	}
 }
 
 func TestVendoredPackageImport(t *testing.T) {

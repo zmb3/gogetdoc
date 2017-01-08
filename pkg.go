@@ -43,9 +43,10 @@ func PackageDoc(ctxt *build.Context, fset *token.FileSet, srcDir string, importP
 		docPkg := doc.New(astPkg, importPath, 0)
 		// TODO: we could also include package-level constants, vars, and functions (like the go doc command)
 		return &Doc{
-			Name: buildPkg.Name,
-			Decl: "package " + buildPkg.Name, // TODO: add '// import "pkg"' (like godoc)
-			Doc:  docPkg.Doc,
+			Name:   buildPkg.Name,
+			Decl:   "package " + buildPkg.Name,
+			Doc:    docPkg.Doc,
+			Import: importPath,
 		}, nil
 	}
 	return nil, errors.New("No documentation found for " + buildPkg.Name)
