@@ -199,6 +199,8 @@ func DocForPos(ctxt *build.Context, lprog *loader.Program, filename string, offs
 					}, nil
 				}
 			}
+		default:
+			break
 		}
 	}
 	return nil, errors.New("gogetdoc: no documentation found")
