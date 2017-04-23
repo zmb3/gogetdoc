@@ -2,14 +2,12 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
-	"go/doc"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -41,33 +39,6 @@ by a newline, the decimal file size, another newline, and the contents of the fi
 
 This allows editors to supply gogetdoc with the contents of their unsaved buffers.
 `
-
-const (
-	indent    = ""
-	preIndent = "    "
-)
-
-// Doc holds the resulting documentation for a particular item.
-type Doc struct {
-	Name   string `json:"name"`
-	Import string `json:"import"`
-	Decl   string `json:"decl"`
-	Doc    string `json:"doc"`
-	Pos    string `json:"pos"`
-}
-
-func (d *Doc) String() string {
-	buf := &bytes.Buffer{}
-	if d.Import != "" {
-		fmt.Fprintf(buf, "import \"%s\"\n\n", d.Import)
-	}
-	fmt.Fprintf(buf, "%s\n\n", d.Decl)
-	if d.Doc == "" {
-		d.Doc = "Undocumented."
-	}
-	doc.ToText(buf, d.Doc, indent, preIndent, *linelength)
-	return buf.String()
-}
 
 func main() {
 	// disable GC as gogetdoc is a short-lived program
