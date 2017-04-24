@@ -157,19 +157,6 @@ func DocForPos(ctxt *build.Context, lprog *loader.Program, filename string, offs
 				continue
 			}
 			return IdentDoc(ctxt, i, pkgInfo, lprog)
-		case *ast.File:
-			if i.Doc != nil {
-				return &Doc{
-					Doc: i.Doc.Text(),
-				}, nil
-			}
-			for _, f := range pkgInfo.Files {
-				if f.Doc != nil {
-					return &Doc{
-						Doc: f.Doc.Text(),
-					}, nil
-				}
-			}
 		default:
 			break
 		}

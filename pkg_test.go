@@ -35,39 +35,6 @@ func Hello() {
 }
 `
 
-func TestPackageClauseMultifile(t *testing.T) {
-	// package doc is typically only on one package clause -
-	// make sure we can get doc even on the package clause(s) that don't have it
-	t.Parallel()
-
-	conf := &loader.Config{
-		ParserMode: parser.ParseComments,
-	}
-
-	astFile1, err := conf.ParseFile("main.go", hello)
-	if err != nil {
-		t.Fatal(err)
-	}
-	astFile2, err := conf.ParseFile("hello.go", hello2)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	conf.CreateFromFiles("main", astFile1, astFile2)
-	prog, err := conf.Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	d, err := DocForPos(&build.Default, prog, "hello.go", 9)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := "Package main is an example package.\n"
-	if d.Doc != want {
-		t.Errorf("want %q, got %q", want, d.Doc)
-	}
-}
-
 func TestPackages(t *testing.T) {
 	t.Parallel()
 	conf := &loader.Config{
@@ -88,8 +55,6 @@ func TestPackages(t *testing.T) {
 		Offset int64
 		Doc    string
 	}{
-		{44, "Package main is an example package"},                               // package doc
-		{49, "Package main is an example package"},                               // package doc
 		{66, "\tPackage fmt implements formatted I/O"},                           // import spec
 		{73, "Package math provides basic constants and mathematical functions"}, // aliased import
 		{79, "Package math provides basic constants and mathematical functions"}, // aliased import

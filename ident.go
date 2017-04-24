@@ -72,8 +72,7 @@ func formatNode(n ast.Node, obj types.Object, prog *loader.Program) string {
 		cp := *n
 		cp.Doc = nil
 		if len(n.Specs) > 0 {
-			// Only print this one type, not all the types in the
-			// gendecl
+			// Only print this one type, not all the types in the gendecl
 			switch n.Specs[0].(type) {
 			case *ast.TypeSpec:
 				spec := findTypeSpec(n, obj.Pos())
