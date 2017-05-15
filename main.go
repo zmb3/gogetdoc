@@ -99,13 +99,18 @@ func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gogetdoc: couldn't get package for %s: %s", filename, err.Error())
 	}
-
 	var parseError error
 	conf := &loader.Config{
-		Build:               ctx,
-		ParserMode:          parser.ParseComments,
-		TypeCheckFuncBodies: func(pkg string) bool { return pkg == bp.ImportPath },
-		AllowErrors:         true,
+		Build:      ctx,
+		ParserMode: parser.ParseComments,
+		TypeCheckFuncBodies: func(pkg string) bool {
+			match := pkg == bp.ImportPath
+			if strings.HasSuffix(filename, "_test.go") {
+				return pkg == bp.ImportPath+"_test" || match
+			}
+			return match
+		},
+		AllowErrors: true,
 		TypeChecker: types.Config{
 			DisableUnusedImportCheck: true,
 			Error: func(err error) {
