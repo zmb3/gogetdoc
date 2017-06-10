@@ -44,6 +44,7 @@ func main() {
 	// disable GC as gogetdoc is a short-lived program
 	debug.SetGCPercent(-1)
 
+	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s\n", os.Args[0])
 		flag.PrintDefaults()
@@ -69,7 +70,8 @@ func main() {
 	ctx := &build.Default
 	ctx.CgoEnabled = false
 	if *modified {
-		overlay, err := buildutil.ParseOverlayArchive(os.Stdin)
+		var overlay map[string][]byte
+		overlay, err = buildutil.ParseOverlayArchive(os.Stdin)
 		if err != nil {
 			log.Fatalln("invalid archive:", err)
 		}
