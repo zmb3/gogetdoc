@@ -36,7 +36,6 @@ func Hello() {
 `
 
 func TestPackages(t *testing.T) {
-	t.Parallel()
 	conf := &loader.Config{
 		ParserMode: parser.ParseComments,
 	}
@@ -72,7 +71,6 @@ func TestPackages(t *testing.T) {
 }
 
 func TestImportPath(t *testing.T) {
-	t.Parallel()
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "main.go", hello, parser.ImportsOnly)
 	if err != nil {
@@ -88,7 +86,6 @@ func TestImportPath(t *testing.T) {
 }
 
 func TestPackageDoc(t *testing.T) {
-	t.Parallel()
 	fset := token.NewFileSet()
 	_, err := parser.ParseFile(fset, "main.go", nil, parser.ImportsOnly)
 	if err != nil {
@@ -107,7 +104,6 @@ func TestPackageDoc(t *testing.T) {
 }
 
 func TestPackageDocDecl(t *testing.T) {
-	t.Parallel()
 	fset := token.NewFileSet()
 	_, err := parser.ParseFile(fset, "main.go", nil, parser.ImportsOnly)
 	if err != nil {

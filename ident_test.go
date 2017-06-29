@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/build"
 	"go/parser"
-	"go/token"
 	"io"
 	"io/ioutil"
 	"os"
@@ -16,96 +15,11 @@ import (
 	"golang.org/x/tools/go/loader"
 )
 
-const funcDecl = `package main
-
-import (
-	"fmt"
-	mth "math"
-)
-
-type X struct{}
-
-// SayHello says hello.
-func (X) SayHello() {
-  fmt.Println("Hello, World", mth.IsNaN(1.23))
-}
-
-func main() {
-  var x X
-  x.SayHello()
-  SayGoodbye()
-}
-
-// SayGoodbye says goodbye.
-func SayGoodbye() {
-  fmt.Println("Goodbye")
-  fmt.Println(Message, fmt.Sprintf("The answer is %d", Answer))
-}
-
-// Message is a message.
-var Message = "This is a test."
-
-// Answer is the answer to life the universe and everything.
-const Answer = 42
-
-type Foo struct {
-	// FieldA has doc
-	FieldA string
-	FieldB string // FieldB has a comment
-}
-
-func (f Foo) Print() {
-	fmt.Println(f.FieldA, f.FieldB)
-}
-
-var slice = []int{0, 1, 2}
-
-func addInt(i int) {
-	slice = append(slice, i)
-	if f := float32(i); f > 42 {
-		fmt.Println("foo")
-	}
-}
-
-const (
-	A = iota
-	B
-	C
-)
-
-var slice2 = []*Foo{nil, nil, nil}
-
-func test() {
-	c := make(chan int)
-	if l := len(slice2); l > 0 {
-		c <- l
-	}
-	close(c)
-}
-
-func test2() error {
-	return nil
-}
-
-var (
-	// Alpha doc
-	Alpha = 0
-	Bravo = 1 // Bravo comment
-	Charlie = 2
-)
-
-type HasUnexported struct {
-	Visible string			// Visible is an exported field
-	notVisible string		// notVisible is an unexported field
-}
-`
-
 func TestIdent(t *testing.T) {
-	t.Parallel()
 	conf := &loader.Config{
 		ParserMode: parser.ParseComments,
 	}
-	astFile, err := conf.ParseFile("test.go", funcDecl)
+	astFile, err := conf.ParseFile(filepath.Join("testdata", "idents.go"), nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -116,74 +30,75 @@ func TestIdent(t *testing.T) {
 		t.Error(err)
 	}
 
-	tokFile := FileFromProgram(prog, "test.go")
+	tokFile := FileFromProgram(prog, "testdata/idents.go")
 	if tokFile == nil {
-		t.Error("Couldn't get token.File from program")
+		t.Fatal("Couldn't get token.File from program")
 	}
 
 	tests := []struct {
-		Pos  token.Pos
+		Pos  int
 		Doc  string
 		Decl string
 	}{
-		{Pos: tokFile.Pos(191), Doc: "SayHello says hello.\n"},                                                              // method call
-		{Pos: tokFile.Pos(205), Doc: "SayGoodbye says goodbye.\n"},                                                          // function call
-		{Pos: tokFile.Pos(305), Doc: "Message is a message.\n"},                                                             // var (use)
-		{Pos: tokFile.Pos(388), Doc: "Message is a message.\n"},                                                             // var (definition)
-		{Pos: tokFile.Pos(318), Doc: "Sprintf formats according to a format specifier and returns the resulting string.\n"}, // std func
-		{Pos: tokFile.Pos(346), Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (use)
-		{Pos: tokFile.Pos(484), Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (definition)
-		{Pos: tokFile.Pos(144), Doc: "IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.\n"},                    // std func call (alias import)
+		{Pos: 190, Doc: "SayHello says hello.\n"},                                                              // method call
+		{Pos: 202, Doc: "SayGoodbye says goodbye.\n"},                                                          // function call
+		{Pos: 300, Doc: "Message is a message.\n"},                                                             // var (use)
+		{Pos: 382, Doc: "Message is a message.\n"},                                                             // var (definition)
+		{Pos: 314, Doc: "Sprintf formats according to a format specifier and returns the resulting string.\n"}, // std func
+		{Pos: 342, Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (use)
+		{Pos: 477, Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (definition)
+		{Pos: 143, Doc: "IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.\n"},                    // std func call (alias import)
 
 		// field doc/comment precedence
-		{Pos: tokFile.Pos(628), Doc: "FieldA has doc\n"},
-		{Pos: tokFile.Pos(637), Doc: "FieldB has a comment\n"},
+		{Pos: 623, Doc: "FieldA has doc\n"},
+		{Pos: 632, Doc: "FieldB has a comment\n"},
 
 		// GenDecl doc/comment precedence
-		{Pos: tokFile.Pos(991), Doc: "Alpha doc"},
-		{Pos: tokFile.Pos(1002), Doc: "Bravo comment"},
-		{Pos: tokFile.Pos(1029)},
+		{Pos: 984, Doc: "Alpha doc"},
+		{Pos: 999, Doc: "Bravo comment"},
 
 		// builtins
-		{Pos: tokFile.Pos(947), Doc: "The error built-in interface type is the conventional"},
-		{Pos: tokFile.Pos(707), Doc: "The append built-in function appends elements to the end"},
-		{Pos: tokFile.Pos(734), Doc: "float32 is the set of all IEEE-754 32-bit floating-point numbers."},
-		{Pos: tokFile.Pos(793), Doc: "iota is a predeclared identifier representing the untyped integer ordinal"},
-		{Pos: tokFile.Pos(832), Doc: "nil is a predeclared identifier representing the zero"},
-		{Pos: tokFile.Pos(886), Doc: "The len built-in function returns the length of v"},
-		{Pos: tokFile.Pos(923), Doc: "The close built-in function closes a channel, which must"},
+		{Pos: 942, Doc: "The error built-in interface type is the conventional"},
+		{Pos: 702, Doc: "The append built-in function appends elements to the end"},
+		{Pos: 730, Doc: "float32 is the set of all IEEE-754 32-bit floating-point numbers."},
+		{Pos: 788, Doc: "iota is a predeclared identifier representing the untyped integer ordinal"},
+		{Pos: 831, Doc: "nil is a predeclared identifier representing the zero"},
+		{Pos: 881, Doc: "The len built-in function returns the length of v"},
+		{Pos: 917, Doc: "The close built-in function closes a channel, which must"},
 
 		// decl
-		{Pos: tokFile.Pos(596), Decl: "type Foo struct {"},
+		{Pos: 591, Decl: "type Foo struct {"},
 	}
-TestLoop:
+
 	for _, test := range tests {
-		info, nodes, _ := prog.PathEnclosingInterval(test.Pos, test.Pos)
-		for i := range nodes {
-			if ident, ok := nodes[i].(*ast.Ident); ok {
-				doc, err := IdentDoc(&build.Default, ident, info, prog)
-				if err != nil {
-					t.Fatal(err)
+		t.Run(test.Doc, func(t *testing.T) {
+			pos := tokFile.Pos(test.Pos)
+			info, nodes, _ := prog.PathEnclosingInterval(pos, pos)
+			for i := range nodes {
+				if ident, ok := nodes[i].(*ast.Ident); ok {
+					doc, err := IdentDoc(&build.Default, ident, info, prog)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !strings.HasPrefix(doc.Doc, test.Doc) {
+						t.Errorf("Want '%s', got '%s'\n", test.Doc, doc.Doc)
+					}
+					if test.Decl != "" && !strings.HasPrefix(doc.Decl, test.Decl) {
+						t.Errorf("Decl: want '%s', got '%s'\n", test.Decl, doc.Decl)
+					}
+					return
 				}
-				if !strings.HasPrefix(doc.Doc, test.Doc) {
-					t.Errorf("Want '%s', got '%s'\n", test.Doc, doc.Doc)
-				}
-				if test.Decl != "" && !strings.HasPrefix(doc.Decl, test.Decl) {
-					t.Errorf("Decl: want '%s', got '%s'\n", test.Decl, doc.Decl)
-				}
-				continue TestLoop
 			}
-		}
-		t.Errorf("Couldn't find *ast.Ident at %s\n", prog.Fset.Position(test.Pos))
+			t.Errorf("Couldn't find *ast.Ident at %v\n", test.Pos)
+		})
 	}
 }
 
 func TestUnexportedFields(t *testing.T) {
-	t.Parallel()
 	conf := &loader.Config{
 		ParserMode: parser.ParseComments,
 	}
-	astFile, err := conf.ParseFile("test.go", funcDecl)
+	astFile, err := conf.ParseFile(filepath.Join("testdata", "idents.go"), nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -194,14 +109,9 @@ func TestUnexportedFields(t *testing.T) {
 		t.Error(err)
 	}
 
-	tokFile := FileFromProgram(prog, "test.go")
-	if tokFile == nil {
-		t.Error("Couldn't get token.File from program")
-	}
-
 	for _, showUnexported := range []bool{true, false} {
 		*showUnexportedFields = showUnexported
-		doc, err := DocForPos(&build.Default, prog, "test.go", 1052)
+		doc, err := DocForPos(&build.Default, prog, "testdata/idents.go", 1051)
 		if err != nil {
 			t.Error(err)
 		}
