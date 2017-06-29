@@ -212,68 +212,71 @@ func TestUnexportedFields(t *testing.T) {
 	}
 }
 
+func TestEmbeddedTypes(t *testing.T) {
+	ctx, cleanup, err := tempGopath("embed.go", "embed")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if cleanup != nil {
+		defer cleanup()
+	}
+
+	tests := []struct {
+		description string
+		offset      int64
+		want        string
+	}{
+		{"embedded value", 75, "foo doc\n"},
+		{"embedded pointer", 112, "foo doc\n"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			doc, err := Run(ctx, "embed.go", test.offset)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if doc.Doc != test.want {
+				t.Errorf("want %q, got %q", test.want, doc.Doc)
+			}
+		})
+	}
+}
+
 func TestIssue20(t *testing.T) {
-	newGopath, err := ioutil.TempDir(".", "gogetdoc-gopath")
+	ctx, cleanup, err := tempGopath("issue20.go", "foo")
 	if err != nil {
 		t.Fatal(err)
 	}
-	newGopath, _ = filepath.Abs(newGopath)
-	defer os.RemoveAll(newGopath)
-
-	fooDir := filepath.Join(newGopath, "src", "github.com", "zmb3", "foo")
-	err = os.MkdirAll(fooDir, 0755)
-	if err != nil {
-		t.Fatal(err)
+	if cleanup != nil {
+		defer cleanup()
 	}
 
-	err = copyFile(filepath.Join(fooDir, "issue20.go"), filepath.FromSlash("./testdata/issue20.go"))
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		desc   string
+		want   string
+		offset int64
+	}{
+		{"named type", "var words []string", 114},
+		{"unnamed type", "var tests []struct{Name string; args string}", 281},
 	}
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			doc, err := Run(ctx, "issue20.go", test.offset)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
+			if doc.Decl != test.want {
+				t.Errorf("want %s, got %s", test.want, doc.Decl)
+			}
+
+			if doc.Doc != "" {
+				t.Errorf("expect doc to be empty, but got %q", doc.Doc)
+			}
+		})
 	}
-	err = os.Chdir(fooDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		os.Chdir(cwd)
-	}()
-
-	ctx := build.Default
-	ctx.GOPATH = newGopath
-	t.Run("named type", func(t *testing.T) {
-		doc, err := Run(&ctx, "issue20.go", 114)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		want := "var words []string"
-		if doc.Decl != want {
-			t.Errorf("want %s, got %s", want, doc.Decl)
-		}
-
-		if doc.Doc != "" {
-			t.Errorf("expect doc to be empty, but got %q", doc.Doc)
-		}
-	})
-
-	t.Run("unnammed type", func(t *testing.T) {
-		doc, err := Run(&ctx, "issue20.go", 281)
-		if err != nil {
-			t.Fatal(err)
-		}
-		want := "var tests []struct{Name string; args string}"
-		if doc.Decl != want {
-			t.Errorf("want %s, got %s", want, doc.Decl)
-		}
-		if doc.Doc != "" {
-			t.Errorf("expect doc to be empty, but got %q", doc.Doc)
-		}
-	})
 }
 
 func TestVendoredIdent(t *testing.T) {
@@ -288,11 +291,10 @@ func TestVendoredIdent(t *testing.T) {
 	err = os.MkdirAll(pkgDir, 0755)
 	if err != nil {
 		t.Fatal(err)
-	} else {
-		defer func() {
-			os.RemoveAll(newGopath)
-		}()
 	}
+	defer func() {
+		os.RemoveAll(newGopath)
+	}()
 
 	err = copyFile(filepath.Join(progDir, "main.go"), filepath.FromSlash("./testdata/main.go"))
 	if err != nil {
@@ -326,6 +328,46 @@ func TestVendoredIdent(t *testing.T) {
 	if doc.Import != want {
 		t.Errorf("want %s, got %s", want, doc.Import)
 	}
+}
+
+func tempGopath(filename, pkg string) (ctx *build.Context, cleanup func(), err error) {
+	newGopath, err := ioutil.TempDir(".", "gogetdoc-gopath")
+	if err != nil {
+		return nil, nil, err
+	}
+	newGopath, _ = filepath.Abs(newGopath)
+
+	pkgDir := filepath.Join(newGopath, "src", "github.com", "zmb3", pkg)
+	err = os.MkdirAll(pkgDir, 0755)
+	if err != nil {
+		os.RemoveAll(newGopath)
+		return nil, nil, err
+	}
+
+	err = copyFile(filepath.Join(pkgDir, filename), filepath.FromSlash("./testdata/"+filename))
+	if err != nil {
+		os.RemoveAll(newGopath)
+		return nil, nil, err
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		os.RemoveAll(newGopath)
+		return nil, nil, err
+	}
+	err = os.Chdir(pkgDir)
+	if err != nil {
+		os.RemoveAll(newGopath)
+		return nil, nil, err
+	}
+
+	cleanup = func() {
+		os.RemoveAll(newGopath)
+		os.Chdir(cwd)
+	}
+	ctx2 := build.Default
+	ctx2.GOPATH = newGopath
+	return &ctx2, cleanup, nil
 }
 
 func copyFile(dst, src string) error {

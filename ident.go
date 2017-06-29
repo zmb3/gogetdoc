@@ -116,6 +116,12 @@ func formatNode(n ast.Node, obj types.Object, prog *loader.Program) string {
 func IdentDoc(ctxt *build.Context, id *ast.Ident, info *loader.PackageInfo, prog *loader.Program) (*Doc, error) {
 	// get definition of identifier
 	obj := info.ObjectOf(id)
+
+	// for anonymous fields, we want the type definition, not the field
+	if v, ok := obj.(*types.Var); ok && v.Anonymous() {
+		obj = info.Uses[id]
+	}
+
 	var pos string
 	if p := obj.Pos(); p.IsValid() {
 		pos = prog.Fset.Position(p).String()
