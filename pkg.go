@@ -47,6 +47,7 @@ func PackageDoc(ctxt *build.Context, fset *token.FileSet, srcDir string, importP
 			Decl:   "package " + buildPkg.Name,
 			Doc:    docPkg.Doc,
 			Import: importPath,
+			Pkg:    docPkg.Name,
 		}, nil
 	}
 	return nil, errors.New("No documentation found for " + buildPkg.Name)

@@ -15,6 +15,7 @@ const (
 type Doc struct {
 	Name   string `json:"name"`
 	Import string `json:"import"`
+	Pkg    string `json:"pkg"`
 	Decl   string `json:"decl"`
 	Doc    string `json:"doc"`
 	Pos    string `json:"pos"`

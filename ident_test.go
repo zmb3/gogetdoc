@@ -81,10 +81,10 @@ func TestIdent(t *testing.T) {
 						t.Fatal(err)
 					}
 					if !strings.HasPrefix(doc.Doc, test.Doc) {
-						t.Errorf("Want '%s', got '%s'\n", test.Doc, doc.Doc)
+						t.Errorf("Want %q, got %q\n", test.Doc, doc.Doc)
 					}
 					if test.Decl != "" && !strings.HasPrefix(doc.Decl, test.Decl) {
-						t.Errorf("Decl: want '%s', got '%s'\n", test.Decl, doc.Decl)
+						t.Errorf("Decl: want %q, got %q\n", test.Decl, doc.Decl)
 					}
 					return
 				}
@@ -149,6 +149,9 @@ func TestEmbeddedTypes(t *testing.T) {
 			}
 			if doc.Doc != test.want {
 				t.Errorf("want %q, got %q", test.want, doc.Doc)
+			}
+			if doc.Pkg != "embed" {
+				t.Errorf("want package embed, got %q", doc.Pkg)
 			}
 		})
 	}

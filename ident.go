@@ -127,9 +127,10 @@ func IdentDoc(ctx *build.Context, id *ast.Ident, info *loader.PackageInfo, prog 
 		pos = prog.Fset.Position(p).String()
 	}
 
-	pkgPath := ""
+	pkgPath, pkgName := "", ""
 	if obj.Pkg() != nil {
 		pkgPath = obj.Pkg().Path()
+		pkgName = obj.Pkg().Name()
 	}
 
 	// handle packages imported under a different name
@@ -144,6 +145,7 @@ func IdentDoc(ctx *build.Context, id *ast.Ident, info *loader.PackageInfo, prog 
 		if doc != "" {
 			return &Doc{
 				Import: "builtin",
+				Pkg:    "builtin",
 				Name:   obj.Name(),
 				Doc:    doc,
 				Decl:   decl,
@@ -165,6 +167,7 @@ func IdentDoc(ctx *build.Context, id *ast.Ident, info *loader.PackageInfo, prog 
 		}
 		doc = &Doc{
 			Import: stripVendorFromImportPath(pkgPath),
+			Pkg:    pkgName,
 			Name:   obj.Name(),
 			Decl:   formatNode(node, obj, prog),
 			Pos:    pos,
