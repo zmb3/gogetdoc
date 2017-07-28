@@ -94,6 +94,32 @@ func TestIdent(t *testing.T) {
 	}
 }
 
+func TestConstantValue(t *testing.T) {
+	conf := &loader.Config{
+		ParserMode: parser.ParseComments,
+	}
+	astFile, err := conf.ParseFile(filepath.Join("testdata", "const.go"), nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	conf.CreateFromFiles("main", astFile)
+	prog, err := conf.Load()
+	if err != nil {
+		t.Error(err)
+	}
+
+	for _, offset := range []int64{107, 113, 118, 125} {
+		doc, err := DocForPos(&build.Default, prog, "testdata/const.go", offset)
+		if err != nil {
+			t.Error(err)
+		}
+		if !strings.Contains(doc.Doc, "Constant Value:") {
+			t.Errorf("Expected doc to contain constant value: %q", doc.Doc)
+		}
+	}
+}
+
 func TestUnexportedFields(t *testing.T) {
 	conf := &loader.Config{
 		ParserMode: parser.ParseComments,
