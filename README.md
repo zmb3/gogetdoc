@@ -19,36 +19,12 @@ Go documentation.  Simply give it a filename and offset within the file and
 it will figure out what you're referring to and find the documentation
 for it.
 
-## Prerequisites
-
-This tool relies on the `go/types` package, which **requires Go 1.6**.
-
-If you attempt to install the tool with an earlier version of Go, you may see
-the following error:
-
-```
-$ go get github.com/zmb3/gogetdoc
-# github.com/zmb3/gogetdoc
-./ident.go:142: c.Val().ExactString undefined (type constant.Value has no field or method ExactString)
-```
-
-Similarly, the tool relies on a recent enough version of
-`golang.org/x/tools`. Try using `go get -u` if you see an error of the
-following kind:
-
-```
-$ go get github.com/zmb3/gogetdoc
-# github.com/zmb3/gogetdoc
-gogetdoc/main.go:77: undefined: buildutil.ParseOverlayArchive
-gogetdoc/main.go:81: undefined: buildutil.OverlayContext
-```
-
 ## Usage
 
 Simply specify a filename and _byte_ offset with the `pos` flag:
 
 ```
-$ gogetdoc -pos $GOROOT/src/fmt/format.go:#6274
+$ gogetdoc -pos "$(go env GOROOT)/src/fmt/format.go:#2351"
 import "unicode/utf8"
 
 func RuneCountInString(s string) (n int)
@@ -62,10 +38,11 @@ In this mode, a JSON object will be written to stdout instead of the raw doc.
 
     {
       "name": "RuneCountInString",
-      "import":  "unicode/utf8",
+      "import": "unicode/utf8",
+      "pkg": "utf8",
       "decl": "func RuneCountInString(s string) (n int)",
       "doc": "RuneCountInString is like RuneCount but its input is a string.\n",
-      "pos": "/usr/local/Cellar/go/1.7/libexec/src/unicode/utf8/utf8.go:409:6"
+      "pos": "/usr/local/Cellar/go/1.9/libexec/src/unicode/utf8/utf8.go:412:6"
     }
 
 ### Unsaved files
@@ -79,6 +56,15 @@ Each archive entry consists of:
  - the file name, followed by a newline
  - the (decimal) file size, followed by a newline
  - the contents of the file
+
+## Editor Support
+
+The following editor plugins are known to support `gogetdoc`:
+
+- Atom: go-plus https://github.com/joefitzgerald/go-plus
+- VS Code: vscode-go https://github.com/Microsoft/vscode-go
+- Vim: vim-go https://github.com/fatih/vim-go
+- Emacs: go-mode https://github.com/dominikh/go-mode.el
 
 ## Contributions
 
@@ -99,5 +85,4 @@ and help coming up with the implementation.
 
 `gogetdoc` is licensed under the 3-Clause BSD license - see the LICENSE file for details.
 
-Portions of this code are borrowed from the Go project and are 
-Copyright 2015 The Go Authors.
+Portions of this code are borrowed from the Go project and are Copyright 2015 The Go Authors.
