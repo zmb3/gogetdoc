@@ -80,7 +80,7 @@ func main() {
 
 	d, err := Run(ctx, filename, offset)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
