@@ -1,6 +1,7 @@
 # gogetdoc
 
 [![Build Status](https://travis-ci.org/zmb3/gogetdoc.svg?branch=master)](https://travis-ci.org/zmb3/gogetdoc)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zmb3/gogetdoc)](https://goreportcard.com/report/github.com/zmb3/gogetdoc)
 
 Retrieve documentation for items in Go source code.
 
