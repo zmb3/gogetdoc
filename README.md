@@ -1,7 +1,7 @@
-gogetdoc
-========
+# gogetdoc
 
 [![Build Status](https://travis-ci.org/zmb3/gogetdoc.svg?branch=master)](https://travis-ci.org/zmb3/gogetdoc)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zmb3/gogetdoc)](https://goreportcard.com/report/github.com/zmb3/gogetdoc)
 
 Retrieve documentation for items in Go source code.
 
@@ -30,32 +30,34 @@ import "unicode/utf8"
 func RuneCountInString(s string) (n int)
 
 RuneCountInString is like RuneCount but its input is a string.
-
 ```
 
 The `-json` flag can be used to enable the extended JSON output.
 In this mode, a JSON object will be written to stdout instead of the raw doc.
 
-    {
-      "name": "RuneCountInString",
-      "import": "unicode/utf8",
-      "pkg": "utf8",
-      "decl": "func RuneCountInString(s string) (n int)",
-      "doc": "RuneCountInString is like RuneCount but its input is a string.\n",
-      "pos": "/usr/local/Cellar/go/1.9/libexec/src/unicode/utf8/utf8.go:412:6"
-    }
+```javascript
+{
+  "name": "RuneCountInString",
+  "import": "unicode/utf8",
+  "pkg": "utf8",
+  "decl": "func RuneCountInString(s string) (n int)",
+  "doc": "RuneCountInString is like RuneCount but its input is a string.\n",
+  "pos": "/usr/local/Cellar/go/1.9/libexec/src/unicode/utf8/utf8.go:412:6"
+}
+```
 
 ### Unsaved files
 
 `gogetdoc` supports the same archive format as `guru` (formerly `oracle`).
 Editors can supply `gogetdoc` with the contents of unsaved buffers by
-using the `-modified` flag and writing an archive to stdin.  
+using the `-modified` flag and writing an archive to stdin.
 Files in the archive will be preferred over those on disk.
 
 Each archive entry consists of:
- - the file name, followed by a newline
- - the (decimal) file size, followed by a newline
- - the contents of the file
+
+- the file name, followed by a newline
+- the (decimal) file size, followed by a newline
+- the contents of the file
 
 ## Editor Support
 
