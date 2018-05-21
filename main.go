@@ -99,7 +99,10 @@ func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 	}
 	bp, err := buildutil.ContainingPackage(ctx, wd, filename)
 	if err != nil {
-		return nil, fmt.Errorf("gogetdoc: couldn't get package for %s: %s", filename, err.Error())
+		bp, err = importLocalPackage(wd, filename)
+		if err != nil {
+			return nil, fmt.Errorf("gogetdoc: couldn't get package for %s: %s", filename, err.Error())
+		}
 	}
 	var parseError error
 	conf := &loader.Config{
@@ -225,4 +228,21 @@ func sameFile(a, b string) bool {
 		}
 	}
 	return false
+}
+
+func importLocalPackage(wd string, filename string) (*build.Package, error) {
+	if !filepath.IsAbs(filename) {
+		filename = filepath.Clean(filepath.Join(wd, filename))
+	}
+
+	filename, err := filepath.Rel(wd, filename)
+	if err != nil {
+		return build.Import(".", wd, build.FindOnly)
+	}
+
+	path := filepath.Dir(filename)
+	if path != "." {
+		path = "./" + path
+	}
+	return build.Import(path, wd, build.FindOnly)
 }

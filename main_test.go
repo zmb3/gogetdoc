@@ -1,6 +1,13 @@
 package main
 
-import "testing"
+import (
+	"go/build"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestParseValidPos(t *testing.T) {
 	fname, offset, err := parsePos("foo.go:#123")
@@ -36,4 +43,66 @@ func TestParseInvalidPos(t *testing.T) {
 			t.Errorf("expected %v to be invalid", input)
 		}
 	}
+}
+
+func TestRunOutsideGopath(t *testing.T) {
+	cleanup, err := makeTempWorkspace("hello.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if cleanup != nil {
+		defer cleanup()
+	}
+
+	tests := []struct {
+		Pos int64
+		Doc string
+	}{
+		{Pos: 23, Doc: "\tPackage fmt implements formatted I/O"},    // import "fmt"
+		{Pos: 48, Doc: "Println formats using the default formats"}, // call fmt.Println()
+	}
+
+	for _, test := range tests {
+		ctx := build.Default
+		doc, err := Run(&ctx, "hello.go", test.Pos)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(doc.Doc, test.Doc) {
+			t.Errorf("want '%s', got '%s'", test.Doc, doc.Doc)
+		}
+	}
+}
+
+func makeTempWorkspace(fileList ...string) (cleanup func(), err error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	tmpDir, err := ioutil.TempDir("", "gogetdoc-tmp")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range fileList {
+		err = copyFile(filepath.Join(tmpDir, file), filepath.FromSlash("./testdata/"+file))
+		if err != nil {
+			os.RemoveAll(tmpDir)
+			return nil, err
+		}
+	}
+
+	err = os.Chdir(tmpDir)
+	if err != nil {
+		os.RemoveAll(tmpDir)
+		return nil, err
+	}
+
+	cleanup = func() {
+		os.RemoveAll(tmpDir)
+		os.Chdir(cwd)
+	}
+	return cleanup, nil
 }
