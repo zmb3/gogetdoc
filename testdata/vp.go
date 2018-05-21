@@ -1,4 +1,4 @@
-// Package vp is an exmaple vendored package.
+// Package vp is an example vendored package.
 package vp
 
 import "fmt"
