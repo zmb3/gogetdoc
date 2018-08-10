@@ -86,7 +86,7 @@ func Run(filename string, offset int64) (*Doc, error) {
 	var parseFile func(fset *token.FileSet, filename string) (*ast.File, error)
 	if *modified {
 		var overlay map[string][]byte
-		overlay, err = buildutil.ParseOverlayArchive(os.Stdin)
+		overlay, err := buildutil.ParseOverlayArchive(os.Stdin)
 		if err != nil {
 			log.Fatalln("invalid archive:", err)
 		}
@@ -108,6 +108,9 @@ func Run(filename string, offset int64) (*Doc, error) {
 			}
 			parseError = err
 		},
+		// Check test packages, if filename is a test file.
+		Tests: strings.HasSuffix(filename, "_test.go"),
+		// Use the archive to parse files.
 		ParseFile: parseFile,
 	}
 	pkgs, err := packages.Load(cfg, fmt.Sprintf("contains:%s", filename))
@@ -118,7 +121,7 @@ func Run(filename string, offset int64) (*Doc, error) {
 		return nil, fmt.Errorf("No package to containing file")
 	}
 
-	// Arbitrarily return the first package.
+	// Arbitrarily return the first package if there are multiple.
 	// TODO: should the user be able to specify which one?
 	if len(pkgs) > 1 {
 		fmt.Printf("packages not processed: %v\n", pkgs[1:])
