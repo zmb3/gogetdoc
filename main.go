@@ -1,4 +1,5 @@
 // gogetdoc gets documentation for Go objects given their locations in the source code
+
 package main
 
 import (
@@ -7,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -30,8 +32,6 @@ var (
 	linelength           = flag.Int("linelength", 80, "maximum length of a line in the output (in Unicode code points)")
 	jsonOutput           = flag.Bool("json", false, "enable extended JSON output")
 	showUnexportedFields = flag.Bool("u", false, "show unexported fields")
-	tagsFlag             = flag.String("tags", "", buildutil.TagsFlagDoc)
-	parseFile            func(fset *token.FileSet, filename string) (*ast.File, error)
 )
 
 const modifiedUsage = `
@@ -45,6 +45,7 @@ func main() {
 	// disable GC as gogetdoc is a short-lived program
 	debug.SetGCPercent(-1)
 
+	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s\n", os.Args[0])
 		flag.PrintDefaults()
@@ -67,18 +68,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *modified {
-		var overlay map[string][]byte
-		overlay, err = buildutil.ParseOverlayArchive(os.Stdin)
-		if err != nil {
-			log.Fatalln("invalid archive:", err)
-		}
-		parseFile = func(fset *token.FileSet, filename string) (*ast.File, error) {
-			const mode = parser.AllErrors | parser.ParseComments
-			return parser.ParseFile(fset, filename, overlay[filename], mode)
-		}
-	}
-
 	d, err := Run(filename, offset)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -94,7 +83,19 @@ func main() {
 
 // Run is a wrapper for the gogetdoc command.  It is broken out of main for easier testing.
 func Run(filename string, offset int64) (*Doc, error) {
-	// TODO(suzmue): only parse additional syntax trees as needed.
+	var parseFile func(fset *token.FileSet, filename string) (*ast.File, error)
+	if *modified {
+		var overlay map[string][]byte
+		overlay, err = buildutil.ParseOverlayArchive(os.Stdin)
+		if err != nil {
+			log.Fatalln("invalid archive:", err)
+		}
+		parseFile = func(fset *token.FileSet, filename string) (*ast.File, error) {
+			const mode = parser.AllErrors | parser.ParseComments
+			return parser.ParseFile(fset, filename, overlay[filename], mode)
+		}
+	}
+
 	var parseError error
 	cfg := &packages.Config{
 		Mode: packages.LoadAllSyntax, // want syntax trees of dependencies
@@ -108,17 +109,16 @@ func Run(filename string, offset int64) (*Doc, error) {
 			parseError = err
 		},
 		ParseFile: parseFile,
-		Flags:     []string{fmt.Sprintf("-tags=%s", *tagsFlag)},
 	}
-	pkgs, err := packages.Load(cfg, "contains:"+filename)
+	pkgs, err := packages.Load(cfg, fmt.Sprintf("contains:%s", filename))
 	if err != nil {
 		return nil, err
 	}
 	if len(pkgs) == 0 {
-		return nil, fmt.Errorf("No package containing file")
+		return nil, fmt.Errorf("No package to containing file")
 	}
 
-	// Arbitrarily return the first package if there are multiple.
+	// Arbitrarily return the first package.
 	// TODO: should the user be able to specify which one?
 	if len(pkgs) > 1 {
 		fmt.Printf("packages not processed: %v\n", pkgs[1:])

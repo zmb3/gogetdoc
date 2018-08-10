@@ -15,7 +15,7 @@ import (
 )
 
 func TestIdent(t *testing.T) {
-	path := filepath.Join("testdata", "idents.go")
+	path := filepath.Join("./", "testdata", "idents.go")
 	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadAllSyntax}, path)
 	if err != nil {
 		t.Error(err)
@@ -220,11 +220,11 @@ func TestVendoredIdent(t *testing.T) {
 		os.RemoveAll(dir)
 	}()
 
-	err = copyFile(filepath.Join(progDir, "main.go"), filepath.FromSlash("testdata/main.go"))
+	err = copyFile(filepath.Join(progDir, "main.go"), filepath.FromSlash("./testdata/main.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = copyFile(filepath.Join(pkgDir, "vp.go"), filepath.FromSlash("testdata/vp.go"))
+	err = copyFile(filepath.Join(pkgDir, "vp.go"), filepath.FromSlash("./testdata/vp.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +274,7 @@ func tempGopath(filename, pkg string) (cleanup func(), err error) {
 		return nil, err
 	}
 
-	err = copyFile(filepath.Join(pkgDir, filename), filepath.FromSlash("testdata/"+filename))
+	err = copyFile(filepath.Join(pkgDir, filename), filepath.FromSlash("./testdata/"+filename))
 	if err != nil {
 		os.RemoveAll(dir)
 		return nil, err
