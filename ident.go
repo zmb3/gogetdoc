@@ -102,6 +102,7 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 	default:
 		return obj.String()
 	}
+
 	buf := &bytes.Buffer{}
 	cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
 	err := cfg.Fprint(buf, prog.Fset, nc)

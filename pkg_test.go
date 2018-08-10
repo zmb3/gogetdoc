@@ -138,13 +138,14 @@ func TestPackageDocDecl(t *testing.T) {
 }
 
 func TestVendoredPackageImport(t *testing.T) {
-	dir, err := tempGoPathDir()
+	gopath, cleanup, err := tempGopathDir()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(dir)
 
-	progDir := filepath.Join(dir, "github.com", "zmb3", "prog")
+	defer cleanup()
+
+	progDir := filepath.Join(gopath, "src", "github.com", "zmb3", "prog")
 	pkgDir := filepath.Join(progDir, "vendor", "github.com", "zmb3", "vp")
 
 	err = os.MkdirAll(pkgDir, 0755)

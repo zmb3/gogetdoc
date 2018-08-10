@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"go/ast"
-	"go/build"
 	"io"
 	"io/ioutil"
 	"os"
@@ -140,6 +139,7 @@ func TestEmbeddedTypes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if cleanup != nil {
 		defer cleanup()
 	}
@@ -205,11 +205,14 @@ func TestIssue20(t *testing.T) {
 }
 
 func TestVendoredIdent(t *testing.T) {
-	dir, err := tempGoPathDir()
+	gopath, cleanup, err := tempGopathDir()
 	if err != nil {
 		t.Fatal(err)
 	}
-	progDir := filepath.Join(dir, "github.com", "zmb3", "prog")
+
+	defer cleanup()
+
+	progDir := filepath.Join(gopath, "src", "github.com", "zmb3", "prog")
 	pkgDir := filepath.Join(progDir, "vendor", "github.com", "zmb3", "vp")
 
 	err = os.MkdirAll(pkgDir, 0755)
@@ -217,7 +220,7 @@ func TestVendoredIdent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		os.RemoveAll(dir)
+		os.RemoveAll(gopath)
 	}()
 
 	err = copyFile(filepath.Join(progDir, "main.go"), filepath.FromSlash("./testdata/main.go"))
@@ -252,48 +255,54 @@ func TestVendoredIdent(t *testing.T) {
 	}
 }
 
-func tempGoPathDir() (string, error) {
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		gopath = build.Default.GOPATH
+func tempGopathDir() (string, func(), error) {
+	gopath, err := ioutil.TempDir("", "gogetdoc")
+	if err != nil {
+		return "", nil, err
 	}
-	gopath, _ = filepath.Abs(gopath)
-	return ioutil.TempDir(filepath.Join(gopath, "src"), "testdir")
+	oldgopath := os.Getenv("GOPATH")
+	os.Setenv("GOPATH", gopath)
+	cleanup := func() {
+		os.Setenv("GOPATH", oldgopath)
+		os.RemoveAll(gopath)
+	}
+
+	return gopath, cleanup, err
 }
 
 func tempGopath(filename, pkg string) (cleanup func(), err error) {
-	dir, err := tempGoPathDir()
+	gopath, gopathcleanup, err := tempGopathDir()
 	if err != nil {
 		return nil, err
 	}
 
-	pkgDir := filepath.Join(dir, "github.com", "zmb3", pkg)
+	pkgDir := filepath.Join(gopath, "src", "github.com", "zmb3", pkg)
 	err = os.MkdirAll(pkgDir, 0755)
 	if err != nil {
-		os.RemoveAll(dir)
+		os.RemoveAll(gopath)
 		return nil, err
 	}
 
 	err = copyFile(filepath.Join(pkgDir, filename), filepath.FromSlash("./testdata/"+filename))
 	if err != nil {
-		os.RemoveAll(dir)
+		os.RemoveAll(gopath)
 		return nil, err
 	}
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		os.RemoveAll(dir)
+		os.RemoveAll(gopath)
 		return nil, err
 	}
 	err = os.Chdir(pkgDir)
 	if err != nil {
-		os.RemoveAll(dir)
+		os.RemoveAll(gopath)
 		return nil, err
 	}
 
 	cleanup = func() {
-		os.RemoveAll(dir)
 		os.Chdir(cwd)
+		gopathcleanup()
 	}
 	return cleanup, nil
 }
