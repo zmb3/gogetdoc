@@ -1,7 +1,6 @@
 package main
 
 import (
-	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -64,8 +63,7 @@ func TestRunOutsideGopath(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		ctx := build.Default
-		doc, err := Run(&ctx, "hello.go", test.Pos)
+		doc, err := Run("hello.go", test.Pos)
 		if err != nil {
 			t.Fatal(err)
 		}

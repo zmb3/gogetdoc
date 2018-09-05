@@ -1,4 +1,5 @@
 // gogetdoc gets documentation for Go objects given their locations in the source code
+
 package main
 
 import (
@@ -21,7 +22,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/packages"
 )
 
 var (
@@ -67,18 +68,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx := &build.Default
-	ctx.CgoEnabled = false
-	if *modified {
-		var overlay map[string][]byte
-		overlay, err = buildutil.ParseOverlayArchive(os.Stdin)
-		if err != nil {
-			log.Fatalln("invalid archive:", err)
-		}
-		ctx = buildutil.OverlayContext(ctx, overlay)
-	}
-
-	d, err := Run(ctx, filename, offset)
+	d, err := Run(filename, offset)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -92,52 +82,52 @@ func main() {
 }
 
 // Run is a wrapper for the gogetdoc command.  It is broken out of main for easier testing.
-func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, errors.New("gogetdoc: couldn't get working directory")
-	}
-	bp, err := buildutil.ContainingPackage(ctx, wd, filename)
-	if err != nil {
-		bp, err = importLocalPackage(wd, filename)
+func Run(filename string, offset int64) (*Doc, error) {
+	var parseFile func(fset *token.FileSet, filename string) (*ast.File, error)
+	if *modified {
+		var overlay map[string][]byte
+		overlay, err := buildutil.ParseOverlayArchive(os.Stdin)
 		if err != nil {
-			return nil, fmt.Errorf("gogetdoc: couldn't get package for %s: %s", filename, err.Error())
+			log.Fatalln("invalid archive:", err)
+		}
+		parseFile = func(fset *token.FileSet, filename string) (*ast.File, error) {
+			const mode = parser.AllErrors | parser.ParseComments
+			return parser.ParseFile(fset, filename, overlay[filename], mode)
 		}
 	}
+
 	var parseError error
-	conf := &loader.Config{
-		Build:      ctx,
-		ParserMode: parser.ParseComments,
-		TypeCheckFuncBodies: func(pkg string) bool {
-			match := pkg == bp.ImportPath
-			if strings.HasSuffix(filename, "_test.go") {
-				return pkg == bp.ImportPath+"_test" || match
-			}
-			return match
-		},
-		AllowErrors: true,
+	cfg := &packages.Config{
+		Mode: packages.LoadAllSyntax, // want syntax trees of dependencies
 		TypeChecker: types.Config{
 			DisableUnusedImportCheck: true,
-			Error: func(err error) {
-				if parseError != nil {
-					return
-				}
-				parseError = err
-			},
 		},
+		Error: func(err error) {
+			if parseError != nil {
+				return
+			}
+			parseError = err
+		},
+		// Check test packages, if filename is a test file.
+		Tests: strings.HasSuffix(filename, "_test.go"),
+		// Use the archive to parse files.
+		ParseFile: parseFile,
 	}
-
-	if isTestFile := strings.HasSuffix(filename, "_test.go"); isTestFile {
-		conf.ImportWithTests(bp.ImportPath)
-	} else {
-		conf.Import(bp.ImportPath)
-	}
-
-	lprog, err := conf.Load()
+	pkgs, err := packages.Load(cfg, fmt.Sprintf("contains:%s", filename))
 	if err != nil {
-		return nil, fmt.Errorf("gogetdoc: error loading program: %s", err.Error())
+		return nil, err
 	}
-	doc, err := DocForPos(ctx, lprog, filename, offset)
+	if len(pkgs) == 0 {
+		return nil, fmt.Errorf("No package to containing file")
+	}
+
+	// Arbitrarily return the first package if there are multiple.
+	// TODO: should the user be able to specify which one?
+	if len(pkgs) > 1 {
+		fmt.Printf("packages not processed: %v\n", pkgs[1:])
+	}
+
+	doc, err := DocForPos(pkgs[0], filename, offset)
 	if err != nil && parseError != nil {
 		fmt.Fprintln(os.Stderr, parseError)
 	}
@@ -145,28 +135,24 @@ func Run(ctx *build.Context, filename string, offset int64) (*Doc, error) {
 }
 
 // DocForPos attempts to get the documentation for an item given a filename and byte offset.
-func DocForPos(ctxt *build.Context, lprog *loader.Program, filename string, offset int64) (*Doc, error) {
+func DocForPos(lprog *packages.Package, filename string, offset int64) (*Doc, error) {
 	tokFile := FileFromProgram(lprog, filename)
 	if tokFile == nil {
 		return nil, fmt.Errorf("gogetdoc: couldn't find %s in program", filename)
 	}
 	offPos := tokFile.Pos(int(offset))
 
-	pkgInfo, nodes, _ := lprog.PathEnclosingInterval(offPos, offPos)
+	pkgInfo, nodes := pathEnclosingInterval(lprog, offPos, offPos)
 	for _, node := range nodes {
 		switch i := node.(type) {
 		case *ast.ImportSpec:
-			abs, err := filepath.Abs(filename)
-			if err != nil {
-				return nil, err
-			}
-			return PackageDoc(ctxt, lprog.Fset, filepath.Dir(abs), ImportPath(i))
+			return PackageDoc(lprog, ImportPath(i))
 		case *ast.Ident:
 			// if we can't find the object denoted by the identifier, keep searching)
 			if obj := pkgInfo.ObjectOf(i); obj == nil {
 				continue
 			}
-			return IdentDoc(ctxt, i, pkgInfo, lprog)
+			return IdentDoc(i, pkgInfo, lprog)
 		default:
 			break
 		}
@@ -175,24 +161,22 @@ func DocForPos(ctxt *build.Context, lprog *loader.Program, filename string, offs
 }
 
 // FileFromProgram attempts to locate a token.File from a loaded program.
-func FileFromProgram(prog *loader.Program, name string) *token.File {
-	for _, info := range prog.AllPackages {
-		for _, astFile := range info.Files {
-			tokFile := prog.Fset.File(astFile.Pos())
-			if tokFile == nil {
-				continue
-			}
-			tokName := tokFile.Name()
-			if runtime.GOOS == "windows" {
-				tokName = filepath.ToSlash(tokName)
-				name = filepath.ToSlash(name)
-			}
-			if tokName == name {
-				return tokFile
-			}
-			if sameFile(tokName, name) {
-				return tokFile
-			}
+func FileFromProgram(prog *packages.Package, name string) *token.File {
+	for _, astFile := range prog.Syntax {
+		tokFile := prog.Fset.File(astFile.Pos())
+		if tokFile == nil {
+			continue
+		}
+		tokName := tokFile.Name()
+		if runtime.GOOS == "windows" {
+			tokName = filepath.ToSlash(tokName)
+			name = filepath.ToSlash(name)
+		}
+		if tokName == name {
+			return tokFile
+		}
+		if sameFile(tokName, name) {
+			return tokFile
 		}
 	}
 	return nil
@@ -228,21 +212,4 @@ func sameFile(a, b string) bool {
 		}
 	}
 	return false
-}
-
-func importLocalPackage(wd string, filename string) (*build.Package, error) {
-	if !filepath.IsAbs(filename) {
-		filename = filepath.Clean(filepath.Join(wd, filename))
-	}
-
-	filename, err := filepath.Rel(wd, filename)
-	if err != nil {
-		return build.Import(".", wd, build.FindOnly)
-	}
-
-	path := filepath.Dir(filename)
-	if path != "." {
-		path = "./" + path
-	}
-	return build.Import(path, wd, build.FindOnly)
 }
