@@ -1,16 +1,16 @@
 package main
 
 import (
-	"go/build"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/packages"
 )
 
 const hello = `// Package main is an example package.
@@ -36,19 +36,15 @@ func Hello() {
 `
 
 func TestPackages(t *testing.T) {
-	conf := &loader.Config{
-		ParserMode: parser.ParseComments,
-	}
-	astFile, err := conf.ParseFile("main.go", hello)
+	newdir, err := ioutil.TempDir(".", "gogetdoc-gopath")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
+	newdir, _ = filepath.Abs(newdir)
+	defer os.RemoveAll(newdir)
 
-	conf.CreateFromFiles("main", astFile)
-	prog, err := conf.Load()
-	if err != nil {
-		t.Error(err)
-	}
+	filename := filepath.Join(newdir, "main.go")
+	ioutil.WriteFile(filename, []byte(hello), 0666)
 
 	tests := []struct {
 		Offset int64
@@ -59,13 +55,22 @@ func TestPackages(t *testing.T) {
 		{79, "Package math provides basic constants and mathematical functions"}, // aliased import
 	}
 	for _, test := range tests {
-		d, err := DocForPos(&build.Default, prog, "main.go", test.Offset)
+		// Reload the packages for each test, since DocForPos changes the ast files.
+		pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadAllSyntax}, filename)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(pkgs) != 1 {
+			t.Errorf("Wanted 1 package for main.go, got %d packages: %v", len(pkgs), pkgs)
+		}
+
+		d, err := DocForPos(pkgs[0], filename, test.Offset)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
 		if !strings.HasPrefix(d.Doc, test.Doc) {
-			t.Errorf("Want '%s', got '%s'", test.Doc, d.Doc)
+			t.Errorf("offset %v: Want '%s', got '%s'", test.Offset, test.Doc, d.Doc)
 		}
 	}
 }
@@ -86,12 +91,16 @@ func TestImportPath(t *testing.T) {
 }
 
 func TestPackageDoc(t *testing.T) {
-	fset := token.NewFileSet()
-	_, err := parser.ParseFile(fset, "main.go", nil, parser.ImportsOnly)
+	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
+	pkgs, err := packages.Load(cfg, "main.go")
 	if err != nil {
 		t.Error(err)
 	}
-	doc, err := PackageDoc(&build.Default, fset, ".", "fmt")
+	if len(pkgs) != 1 {
+		t.Errorf("Wanted 1 package for main.go, got %d packages: %v", len(pkgs), pkgs)
+	}
+
+	doc, err := PackageDoc(pkgs[0], "fmt")
 	if err != nil {
 		t.Error(err)
 	}
@@ -104,12 +113,16 @@ func TestPackageDoc(t *testing.T) {
 }
 
 func TestPackageDocDecl(t *testing.T) {
-	fset := token.NewFileSet()
-	_, err := parser.ParseFile(fset, "main.go", nil, parser.ImportsOnly)
+	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
+	pkgs, err := packages.Load(cfg, "main.go")
 	if err != nil {
 		t.Error(err)
 	}
-	doc, err := PackageDoc(&build.Default, fset, ".", "fmt")
+	if len(pkgs) != 1 {
+		t.Errorf("Wanted 1 package for main.go, got %d packages: %v", len(pkgs), pkgs)
+	}
+
+	doc, err := PackageDoc(pkgs[0], "fmt")
 	if err != nil {
 		t.Error(err)
 	}
@@ -119,21 +132,19 @@ func TestPackageDocDecl(t *testing.T) {
 }
 
 func TestVendoredPackageImport(t *testing.T) {
-	newGopath, err := ioutil.TempDir(".", "gogetdoc-gopath")
+	gopath, cleanup, err := tempGopathDir()
 	if err != nil {
 		t.Fatal(err)
 	}
-	newGopath, _ = filepath.Abs(newGopath)
-	progDir := filepath.Join(newGopath, "src", "github.com", "zmb3", "prog")
+
+	defer cleanup()
+
+	progDir := filepath.Join(gopath, "src", "github.com", "zmb3", "prog")
 	pkgDir := filepath.Join(progDir, "vendor", "github.com", "zmb3", "vp")
 
 	err = os.MkdirAll(pkgDir, 0755)
 	if err != nil {
 		t.Fatal(err)
-	} else {
-		defer func() {
-			os.RemoveAll(newGopath)
-		}()
 	}
 
 	err = copyFile(filepath.Join(progDir, "main.go"), filepath.FromSlash("./testdata/main.go"))
@@ -157,9 +168,7 @@ func TestVendoredPackageImport(t *testing.T) {
 		os.Chdir(cwd)
 	}()
 
-	ctx := build.Default
-	ctx.GOPATH = newGopath
-	doc, err := Run(&ctx, "main.go", 39)
+	doc, err := Run("main.go", 39)
 	if err != nil {
 		t.Fatal(err)
 	}

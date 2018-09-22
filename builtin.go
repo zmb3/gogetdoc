@@ -1,38 +1,44 @@
 package main
 
 import (
-	"go/build"
+	"go/ast"
 	"go/doc"
 	"go/parser"
 	"go/token"
 	"go/types"
-	"os"
+	"log"
 
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/packages"
 )
 
 func builtinPackage() *doc.Package {
-	buildPkg, err := build.Import("builtin", "", build.ImportComment)
-	// should never fail
+	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadFiles}, "builtin")
 	if err != nil {
-		panic(err)
+		log.Fatalf("error getting metadata of builtin: %v", err)
 	}
-	include := func(info os.FileInfo) bool {
-		return info.Name() == "builtin.go"
-	}
+	pkg := pkgs[0]
+
 	fs := token.NewFileSet()
-	astPkgs, err := parser.ParseDir(fs, buildPkg.Dir, include, parser.ParseComments)
-	if err != nil {
-		panic(err)
+	fileMap := make(map[string]*ast.File)
+	for _, filename := range pkg.GoFiles {
+		file, err := parser.ParseFile(fs, filename, nil, parser.ParseComments)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fileMap[filename] = file
 	}
-	astPkg := astPkgs["builtin"]
-	return doc.New(astPkg, buildPkg.ImportPath, doc.AllDecls)
+
+	astPkg := &ast.Package{
+		Name:  pkg.Name,
+		Files: fileMap,
+	}
+	return doc.New(astPkg, "builtin", doc.AllDecls)
 }
 
 // findInBuiltin searches for an identifier in the builtin package.
 // It searches in the following order: funcs, constants and variables,
 // and finally types.
-func findInBuiltin(name string, obj types.Object, prog *loader.Program) (docstring, decl string) {
+func findInBuiltin(name string, obj types.Object, prog *packages.Package) (docstring, decl string) {
 	pkg := builtinPackage()
 
 	consts := make([]*doc.Value, 0, 2*len(pkg.Consts))
