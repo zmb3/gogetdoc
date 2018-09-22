@@ -128,9 +128,9 @@ func IdentDoc(id *ast.Ident, info *types.Info, prog *packages.Package) (*Doc, er
 	}
 
 	pkgPath, pkgName := "", ""
-	if obj.Pkg() != nil {
-		pkgPath = obj.Pkg().Path()
-		pkgName = obj.Pkg().Name()
+	if op := obj.Pkg(); op != nil {
+		pkgPath = op.Path()
+		pkgName = op.Name()
 	}
 
 	// handle packages imported under a different name

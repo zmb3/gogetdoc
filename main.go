@@ -11,7 +11,6 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
-	"go/types"
 	"log"
 	"os"
 	"path/filepath"
@@ -96,22 +95,10 @@ func Run(filename string, offset int64) (*Doc, error) {
 		}
 	}
 
-	var parseError error
 	cfg := &packages.Config{
-		Mode: packages.LoadAllSyntax, // want syntax trees of dependencies
-		TypeChecker: types.Config{
-			DisableUnusedImportCheck: true,
-		},
-		Error: func(err error) {
-			if parseError != nil {
-				return
-			}
-			parseError = err
-		},
-		// Check test packages, if filename is a test file.
-		Tests: strings.HasSuffix(filename, "_test.go"),
-		// Use the archive to parse files.
-		ParseFile: parseFile,
+		Mode:      packages.LoadAllSyntax, // want syntax trees of dependencies
+		ParseFile: parseFile,              // Use the archive to parse files.
+		Tests:     strings.HasSuffix(filename, "_test.go"),
 	}
 	pkgs, err := packages.Load(cfg, fmt.Sprintf("contains:%s", filename))
 	if err != nil {
@@ -128,8 +115,8 @@ func Run(filename string, offset int64) (*Doc, error) {
 	}
 
 	doc, err := DocForPos(pkgs[0], filename, offset)
-	if err != nil && parseError != nil {
-		fmt.Fprintln(os.Stderr, parseError)
+	if err != nil && len(pkgs[0].Errors) > 0 {
+		fmt.Fprintln(os.Stderr, pkgs[0].Errors[0])
 	}
 	return doc, err
 }

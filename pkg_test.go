@@ -91,10 +91,7 @@ func TestImportPath(t *testing.T) {
 }
 
 func TestPackageDoc(t *testing.T) {
-	cfg := &packages.Config{
-		Mode:  packages.LoadAllSyntax,
-		Error: func(error) {}, // suppress parsing errors
-	}
+	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
 	pkgs, err := packages.Load(cfg, "main.go")
 	if err != nil {
 		t.Error(err)
@@ -116,10 +113,7 @@ func TestPackageDoc(t *testing.T) {
 }
 
 func TestPackageDocDecl(t *testing.T) {
-	cfg := &packages.Config{
-		Mode:  packages.LoadAllSyntax,
-		Error: func(error) {}, // suppress parsing errors
-	}
+	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
 	pkgs, err := packages.Load(cfg, "main.go")
 	if err != nil {
 		t.Error(err)
