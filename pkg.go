@@ -22,10 +22,10 @@ func ImportPath(is *ast.ImportSpec) string {
 func PackageDoc(from *packages.Package, importPath string) (*Doc, error) {
 	pkg := from.Imports[importPath]
 	if pkg == nil {
-		return nil, fmt.Errorf("package %s not in import map of packages %v.", importPath, from)
+		return nil, fmt.Errorf("package %s not in import map of packages %v", importPath, from)
 	}
 	if len(pkg.Syntax) == 0 {
-		return nil, errors.New("No documentation found for " + pkg.Name)
+		return nil, errors.New("no documentation found for " + pkg.Name)
 	}
 
 	fileMap := make(map[string]*ast.File)
