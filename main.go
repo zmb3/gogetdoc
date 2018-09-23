@@ -105,13 +105,13 @@ func Run(filename string, offset int64) (*Doc, error) {
 		return nil, err
 	}
 	if len(pkgs) == 0 {
-		return nil, fmt.Errorf("No package to containing file")
+		return nil, fmt.Errorf("no package to containing file %s", filename)
 	}
 
 	// Arbitrarily return the first package if there are multiple.
 	// TODO: should the user be able to specify which one?
 	if len(pkgs) > 1 {
-		fmt.Printf("packages not processed: %v\n", pkgs[1:])
+		log.Printf("packages not processed: %v\n", pkgs[1:])
 	}
 
 	doc, err := DocForPos(pkgs[0], filename, offset)
