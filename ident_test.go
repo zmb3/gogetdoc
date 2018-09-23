@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"io"
@@ -88,6 +89,40 @@ func TestIdent(t *testing.T) {
 	}
 }
 
+func TestModified(t *testing.T) {
+	path, err := filepath.Abs(filepath.Join("testdata", "const.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	contents := `package main
+
+import "fmt"
+
+const (
+	Zero = iota
+	One
+	Two
+)
+
+const Three = 3
+
+func main() {
+	fmt.Println(Zero, One, Three, Three)
+}`
+	archive := fmt.Sprintf("%s\n%d\n%s", path, len(contents), contents)
+
+	archiveReader = bytes.NewBufferString(archive)
+	defer func() { archiveReader = os.Stdin }()
+
+	d, err := Run(path, int64(118), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := d.Name; n != "Three" {
+		t.Errorf("got const %s, want Three", n)
+	}
+}
+
 func TestConstantValue(t *testing.T) {
 	path := filepath.Join("testdata", "const.go")
 	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadAllSyntax}, path)
@@ -155,7 +190,7 @@ func TestEmbeddedTypes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
-			doc, err := Run("embed.go", test.offset)
+			doc, err := Run("embed.go", test.offset, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -188,7 +223,7 @@ func TestIssue20(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			doc, err := Run("issue20.go", test.offset)
+			doc, err := Run("issue20.go", test.offset, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -244,7 +279,7 @@ func TestVendoredIdent(t *testing.T) {
 		os.Chdir(cwd)
 	}()
 
-	doc, err := Run("main.go", 63)
+	doc, err := Run("main.go", 63, false)
 	if err != nil {
 		t.Fatal(err)
 	}

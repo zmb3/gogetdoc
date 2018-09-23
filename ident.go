@@ -152,13 +152,13 @@ func IdentDoc(id *ast.Ident, info *types.Info, prog *packages.Package) (*Doc, er
 				Pos:    pos,
 			}, nil
 		}
-		return nil, fmt.Errorf("No documentation found for %s", obj.Name())
+		return nil, fmt.Errorf("no documentation found for %s", obj.Name())
 	}
 	var doc *Doc
 	for _, node := range nodes {
 		switch node.(type) {
 		case *ast.Ident:
-			// continue ascending AST (searching for parent node of the identifier))
+			// continue ascending AST (searching for parent node of the identifier)
 			continue
 		case *ast.FuncDecl, *ast.GenDecl, *ast.Field, *ast.TypeSpec, *ast.ValueSpec:
 			// found the parent node
@@ -176,7 +176,7 @@ func IdentDoc(id *ast.Ident, info *types.Info, prog *packages.Package) (*Doc, er
 	}
 	if doc == nil {
 		// This shouldn't happen
-		return nil, fmt.Errorf("No documentation found for %s", obj.Name())
+		return nil, fmt.Errorf("no documentation found for %s", obj.Name())
 	}
 
 	for _, node := range nodes {

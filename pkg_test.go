@@ -168,7 +168,7 @@ func TestVendoredPackageImport(t *testing.T) {
 		os.Chdir(cwd)
 	}()
 
-	doc, err := Run("main.go", 39)
+	doc, err := Run("main.go", 39, false)
 	if err != nil {
 		t.Fatal(err)
 	}

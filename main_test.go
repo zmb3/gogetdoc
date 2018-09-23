@@ -63,7 +63,7 @@ func TestRunOutsideGopath(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		doc, err := Run("hello.go", test.Pos)
+		doc, err := Run("hello.go", test.Pos, false)
 		if err != nil {
 			t.Fatal(err)
 		}

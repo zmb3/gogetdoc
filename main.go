@@ -11,6 +11,7 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -32,6 +33,8 @@ var (
 	jsonOutput           = flag.Bool("json", false, "enable extended JSON output")
 	showUnexportedFields = flag.Bool("u", false, "show unexported fields")
 )
+
+var archiveReader io.Reader = os.Stdin
 
 const modifiedUsage = `
 The archive format for the -modified flag consists of the file name, followed
@@ -63,14 +66,12 @@ func main() {
 	}
 	filename, offset, err := parsePos(*pos)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 
-	d, err := Run(filename, offset)
+	d, err := Run(filename, offset, *modified)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 
 	if *jsonOutput {
@@ -81,17 +82,21 @@ func main() {
 }
 
 // Run is a wrapper for the gogetdoc command.  It is broken out of main for easier testing.
-func Run(filename string, offset int64) (*Doc, error) {
+func Run(filename string, offset int64, modified bool) (*Doc, error) {
 	var parseFile func(fset *token.FileSet, filename string) (*ast.File, error)
-	if *modified {
+	if modified {
 		var overlay map[string][]byte
-		overlay, err := buildutil.ParseOverlayArchive(os.Stdin)
+		overlay, err := buildutil.ParseOverlayArchive(archiveReader)
 		if err != nil {
 			log.Fatalln("invalid archive:", err)
 		}
 		parseFile = func(fset *token.FileSet, filename string) (*ast.File, error) {
 			const mode = parser.AllErrors | parser.ParseComments
-			return parser.ParseFile(fset, filename, overlay[filename], mode)
+			b := overlay[filename]
+			if len(b) == 0 {
+				return parser.ParseFile(fset, filename, nil, mode)
+			}
+			return parser.ParseFile(fset, filename, b, mode)
 		}
 	}
 
