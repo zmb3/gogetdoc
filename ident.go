@@ -113,7 +113,7 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 }
 
 // IdentDoc attempts to get the documentation for a *ast.Ident.
-func IdentDoc(id *ast.Ident, info *types.Info, prog *packages.Package) (*Doc, error) {
+func IdentDoc(id *ast.Ident, info *types.Info, pkg *packages.Package) (*Doc, error) {
 	// get definition of identifier
 	obj := info.ObjectOf(id)
 
@@ -124,7 +124,7 @@ func IdentDoc(id *ast.Ident, info *types.Info, prog *packages.Package) (*Doc, er
 
 	var pos string
 	if p := obj.Pos(); p.IsValid() {
-		pos = prog.Fset.Position(p).String()
+		pos = pkg.Fset.Position(p).String()
 	}
 
 	pkgPath, pkgName := "", ""
@@ -135,13 +135,13 @@ func IdentDoc(id *ast.Ident, info *types.Info, prog *packages.Package) (*Doc, er
 
 	// handle packages imported under a different name
 	if p, ok := obj.(*types.PkgName); ok {
-		return PackageDoc(prog, p.Imported().Path())
+		return PackageDoc(pkg, p.Imported().Path())
 	}
 
-	_, nodes := pathEnclosingInterval(prog, obj.Pos(), obj.Pos())
+	_, nodes := pathEnclosingInterval(pkg, obj.Pos(), obj.Pos())
 	if len(nodes) == 0 {
 		// special case - builtins
-		doc, decl := findInBuiltin(obj.Name(), obj, prog)
+		doc, decl := findInBuiltin(obj.Name(), obj, pkg)
 		if doc != "" {
 			return &Doc{
 				Import: "builtin",
@@ -169,7 +169,7 @@ func IdentDoc(id *ast.Ident, info *types.Info, prog *packages.Package) (*Doc, er
 			Import: stripVendorFromImportPath(pkgPath),
 			Pkg:    pkgName,
 			Name:   obj.Name(),
-			Decl:   formatNode(node, obj, prog),
+			Decl:   formatNode(node, obj, pkg),
 			Pos:    pos,
 		}
 		break

@@ -23,9 +23,8 @@ func TestIdent(t *testing.T) {
 	if len(pkgs) != 1 {
 		t.Errorf("Wanted 1 package for %s, got %d packages: %v", path, len(pkgs), pkgs)
 	}
-	prog := pkgs[0]
 
-	tokFile := FileFromProgram(prog, path)
+	tokFile := FileFromPkg(pkgs[0], path)
 	if tokFile == nil {
 		t.Fatal("Couldn't get token.File from program")
 	}
@@ -68,10 +67,10 @@ func TestIdent(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.Doc, func(t *testing.T) {
 			pos := tokFile.Pos(test.Pos)
-			info, nodes := pathEnclosingInterval(prog, pos, pos)
+			info, nodes := pathEnclosingInterval(pkgs[0], pos, pos)
 			for i := range nodes {
 				if ident, ok := nodes[i].(*ast.Ident); ok {
-					doc, err := IdentDoc(ident, info, prog)
+					doc, err := IdentDoc(ident, info, pkgs[0])
 					if err != nil {
 						t.Fatal(err)
 					}

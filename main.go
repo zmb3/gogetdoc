@@ -127,24 +127,24 @@ func Run(filename string, offset int64, modified bool) (*Doc, error) {
 }
 
 // DocForPos attempts to get the documentation for an item given a filename and byte offset.
-func DocForPos(lprog *packages.Package, filename string, offset int64) (*Doc, error) {
-	tokFile := FileFromProgram(lprog, filename)
+func DocForPos(pkg *packages.Package, filename string, offset int64) (*Doc, error) {
+	tokFile := FileFromPkg(pkg, filename)
 	if tokFile == nil {
 		return nil, fmt.Errorf("gogetdoc: couldn't find %s in program", filename)
 	}
 	offPos := tokFile.Pos(int(offset))
 
-	pkgInfo, nodes := pathEnclosingInterval(lprog, offPos, offPos)
+	pkgInfo, nodes := pathEnclosingInterval(pkg, offPos, offPos)
 	for _, node := range nodes {
 		switch i := node.(type) {
 		case *ast.ImportSpec:
-			return PackageDoc(lprog, ImportPath(i))
+			return PackageDoc(pkg, ImportPath(i))
 		case *ast.Ident:
 			// if we can't find the object denoted by the identifier, keep searching)
 			if obj := pkgInfo.ObjectOf(i); obj == nil {
 				continue
 			}
-			return IdentDoc(i, pkgInfo, lprog)
+			return IdentDoc(i, pkgInfo, pkg)
 		default:
 			break
 		}
@@ -152,10 +152,10 @@ func DocForPos(lprog *packages.Package, filename string, offset int64) (*Doc, er
 	return nil, errors.New("gogetdoc: no documentation found")
 }
 
-// FileFromProgram attempts to locate a token.File from a loaded program.
-func FileFromProgram(prog *packages.Package, name string) *token.File {
-	for _, astFile := range prog.Syntax {
-		tokFile := prog.Fset.File(astFile.Pos())
+// FileFromPkg attempts to locate a token.File from a loaded package.
+func FileFromPkg(pkg *packages.Package, name string) *token.File {
+	for _, astFile := range pkg.Syntax {
+		tokFile := pkg.Fset.File(astFile.Pos())
 		if tokFile == nil {
 			continue
 		}
