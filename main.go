@@ -12,15 +12,15 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
 	"strings"
 
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/packages"
 )
@@ -43,9 +43,13 @@ by a newline, the decimal file size, another newline, and the contents of the fi
 This allows editors to supply gogetdoc with the contents of their unsaved buffers.
 `
 
+const debugAST = false
+
 func main() {
 	// disable GC as gogetdoc is a short-lived program
 	debug.SetGCPercent(-1)
+
+	log.SetOutput(ioutil.Discard)
 
 	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
 	flag.Usage = func() {
@@ -81,70 +85,131 @@ func main() {
 	}
 }
 
-// Run is a wrapper for the gogetdoc command.  It is broken out of main for easier testing.
-func Run(filename string, offset int64, modified bool) (*Doc, error) {
-	var parseFile func(fset *token.FileSet, filename string) (*ast.File, error)
+// Load loads the package containing the specified file and returns the AST file
+// containing the search position.  It can optionally load modified files from
+// an overlay archive.
+func Load(filename string, offset int, modified bool) (*packages.Package, []ast.Node, error) {
+	ch := make(chan []ast.Node, 1)
+	var archive map[string][]byte
+
 	if modified {
-		var overlay map[string][]byte
-		overlay, err := buildutil.ParseOverlayArchive(archiveReader)
+		var err error
+		archive, err = buildutil.ParseOverlayArchive(archiveReader)
 		if err != nil {
-			log.Fatalln("invalid archive:", err)
-		}
-		parseFile = func(fset *token.FileSet, filename string) (*ast.File, error) {
-			const mode = parser.AllErrors | parser.ParseComments
-			b := overlay[filename]
-			if len(b) == 0 {
-				return parser.ParseFile(fset, filename, nil, mode)
-			}
-			return parser.ParseFile(fset, filename, b, mode)
+			return nil, nil, fmt.Errorf("invalid archive: %v", err)
 		}
 	}
+	// Adapted from: https://github.com/ianthehat/godef
+	fstat, fstatErr := os.Stat(filename)
+	parseFile := func(fset *token.FileSet, fname string) (*ast.File, error) {
+		var (
+			filedata []byte
+			err      error
+			s        os.FileInfo
+		)
+		isInputFile := false
+		if filename == fname {
+			isInputFile = true
+		} else if fstatErr != nil {
+			isInputFile = false
+		} else if s, err = os.Stat(fname); err == nil {
+			isInputFile = os.SameFile(fstat, s)
+		}
 
+		if b, ok := archive[fname]; ok {
+			filedata = b
+		} else {
+			if filedata, err = ioutil.ReadFile(fname); err != nil {
+				return nil, fmt.Errorf("cannot read %s: %v", fname, err)
+			}
+		}
+		mode := parser.ParseComments
+		if isInputFile && debugAST {
+			mode |= parser.Trace
+		}
+		file, err := parser.ParseFile(fset, fname, filedata, mode)
+		if file == nil || err != nil {
+			return nil, err
+		}
+		var keepFunc *ast.FuncDecl
+		if isInputFile {
+			// find the start of the file (which may be before file.Pos() if there are
+			//  comments before the package clause)
+			start := file.Pos()
+			if len(file.Comments) > 0 && file.Comments[0].Pos() < start {
+				start = file.Comments[0].Pos()
+			}
+
+			pos := start + token.Pos(offset)
+			if pos > file.End() {
+				return file, fmt.Errorf("cursor %d is beyond end of file %s (%d)", offset, fname, file.End()-file.Pos())
+			}
+			path, _ := astutil.PathEnclosingInterval(file, pos, pos)
+			if len(path) < 1 {
+				return nil, fmt.Errorf("offset was not a valid token")
+			}
+
+			// if we are inside a function, we need to retain that function body
+			// start from the top not the bottom
+			for i := len(path) - 1; i >= 0; i-- {
+				if f, ok := path[i].(*ast.FuncDecl); ok {
+					keepFunc = f
+					break
+				}
+			}
+			ch <- path
+		}
+		// and drop all function bodies that are not relevant so they don't get
+		// type checked
+		for _, decl := range file.Decls {
+			if f, ok := decl.(*ast.FuncDecl); ok && f != keepFunc {
+				f.Body = nil
+			}
+		}
+		return file, err
+	}
 	cfg := &packages.Config{
-		Mode:      packages.LoadAllSyntax, // want syntax trees of dependencies
-		ParseFile: parseFile,              // Use the archive to parse files.
+		Mode:      packages.LoadAllSyntax,
+		ParseFile: parseFile,
 		Tests:     strings.HasSuffix(filename, "_test.go"),
 	}
 	pkgs, err := packages.Load(cfg, fmt.Sprintf("contains:%s", filename))
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("cannot load package containing %s: %v", filename, err)
 	}
 	if len(pkgs) == 0 {
-		return nil, fmt.Errorf("no package to containing file %s", filename)
+		return nil, nil, fmt.Errorf("no package to containing file %s", filename)
 	}
-
 	// Arbitrarily return the first package if there are multiple.
 	// TODO: should the user be able to specify which one?
 	if len(pkgs) > 1 {
 		log.Printf("packages not processed: %v\n", pkgs[1:])
 	}
-
-	doc, err := DocForPos(pkgs[0], filename, offset)
-	if err != nil && len(pkgs[0].Errors) > 0 {
-		fmt.Fprintln(os.Stderr, pkgs[0].Errors[0])
-	}
-	return doc, err
+	return pkgs[0], <-ch, nil
 }
 
-// DocForPos attempts to get the documentation for an item given a filename and byte offset.
-func DocForPos(pkg *packages.Package, filename string, offset int64) (*Doc, error) {
-	tokFile := FileFromPkg(pkg, filename)
-	if tokFile == nil {
-		return nil, fmt.Errorf("gogetdoc: couldn't find %s in program", filename)
+// Run is a wrapper for the gogetdoc command.  It is broken out of main for easier testing.
+func Run(filename string, offset int, modified bool) (*Doc, error) {
+	pkg, nodes, err := Load(filename, offset, modified)
+	if err != nil {
+		return nil, err
 	}
-	offPos := tokFile.Pos(int(offset))
+	return DocFromNodes(pkg, nodes)
+}
 
-	pkgInfo, nodes := pathEnclosingInterval(pkg, offPos, offPos)
+// DocFromNodes gets the documentation from the AST node(s) in the specified package.
+func DocFromNodes(pkg *packages.Package, nodes []ast.Node) (*Doc, error) {
 	for _, node := range nodes {
-		switch i := node.(type) {
+		// log.Printf("node is a %T\n", node)
+		switch node := node.(type) {
 		case *ast.ImportSpec:
-			return PackageDoc(pkg, ImportPath(i))
+			return PackageDoc(pkg, ImportPath(node))
 		case *ast.Ident:
 			// if we can't find the object denoted by the identifier, keep searching)
-			if obj := pkgInfo.ObjectOf(i); obj == nil {
+			if obj := pkg.TypesInfo.ObjectOf(node); obj == nil {
 				continue
 			}
-			return IdentDoc(i, pkgInfo, pkg)
+			return IdentDoc(node, pkg.TypesInfo, pkg)
 		default:
 			break
 		}
@@ -152,56 +217,19 @@ func DocForPos(pkg *packages.Package, filename string, offset int64) (*Doc, erro
 	return nil, errors.New("gogetdoc: no documentation found")
 }
 
-// FileFromPkg attempts to locate a token.File from a loaded package.
-func FileFromPkg(pkg *packages.Package, name string) *token.File {
-	for _, astFile := range pkg.Syntax {
-		tokFile := pkg.Fset.File(astFile.Pos())
-		if tokFile == nil {
-			continue
-		}
-		tokName := tokFile.Name()
-		if runtime.GOOS == "windows" {
-			tokName = filepath.ToSlash(tokName)
-			name = filepath.ToSlash(name)
-		}
-		if tokName == name {
-			return tokFile
-		}
-		if sameFile(tokName, name) {
-			return tokFile
-		}
-	}
-	return nil
-}
-
-func parsePos(p string) (filename string, offset int64, err error) {
-	// foo.go:#123
+// parsePos parses the search position as provided on the command line.
+// It should be of the form: foo.go:#123
+func parsePos(p string) (filename string, offset int, err error) {
 	if p == "" {
-		err = errors.New("missing required -pos flag")
-		return
+		return "", 0, errors.New("missing required -pos flag")
 	}
 	sep := strings.LastIndex(p, ":")
 	// need at least 2 characters after the ':'
 	// (the # sign and the offset)
 	if sep == -1 || sep > len(p)-2 || p[sep+1] != '#' {
-		err = fmt.Errorf("invalid option: -pos=%s", p)
-		return
+		return "", 0, fmt.Errorf("invalid option: -pos=%s", p)
 	}
 	filename = p[:sep]
-	offset, err = strconv.ParseInt(p[sep+2:], 10, 32)
-	return
-}
-
-func sameFile(a, b string) bool {
-	if filepath.Base(a) != filepath.Base(b) {
-		// We only care about symlinks for the GOPATH itself. File
-		// names need to match.
-		return false
-	}
-	if ai, err := os.Stat(a); err == nil {
-		if bi, err := os.Stat(b); err == nil {
-			return os.SameFile(ai, bi)
-		}
-	}
-	return false
+	off, err := strconv.ParseInt(p[sep+2:], 10, 32)
+	return filename, int(off), err
 }

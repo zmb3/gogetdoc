@@ -1,4 +1,4 @@
-package foo
+package somepkg
 
 import "fmt"
 

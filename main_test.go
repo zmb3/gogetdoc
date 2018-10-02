@@ -55,7 +55,7 @@ func TestRunOutsideGopath(t *testing.T) {
 	}
 
 	tests := []struct {
-		Pos int64
+		Pos int
 		Doc string
 	}{
 		{Pos: 23, Doc: "\tPackage fmt implements formatted I/O"},    // import "fmt"

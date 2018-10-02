@@ -59,7 +59,7 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 		return obj.String()
 	case *ast.TypeSpec:
 		specCp := *n
-		if *showUnexportedFields == false {
+		if !*showUnexportedFields {
 			trimUnexportedElems(&specCp)
 		}
 		specCp.Doc = nil
@@ -78,7 +78,7 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 				spec := findTypeSpec(n, obj.Pos())
 				if spec != nil {
 					specCp := *spec
-					if *showUnexportedFields == false {
+					if !*showUnexportedFields {
 						trimUnexportedElems(&specCp)
 					}
 					specCp.Doc = nil

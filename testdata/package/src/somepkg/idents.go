@@ -1,4 +1,4 @@
-package main
+package somepkg
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ func (X) SayHello() {
 	fmt.Println("Hello, World", mth.IsNaN(1.23))
 }
 
-func main() {
+func Baz() {
 	var x X
 	x.SayHello()
 	SayGoodbye()

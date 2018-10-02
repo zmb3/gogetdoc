@@ -3,31 +3,17 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"golang.org/x/tools/go/packages"
 )
 
 func TestIdent(t *testing.T) {
-	path := filepath.Join("./", "testdata", "idents.go")
-	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadAllSyntax}, path)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(pkgs) != 1 {
-		t.Errorf("Wanted 1 package for %s, got %d packages: %v", path, len(pkgs), pkgs)
-	}
-
-	tokFile := FileFromPkg(pkgs[0], path)
-	if tokFile == nil {
-		t.Fatal("Couldn't get token.File from program")
-	}
+	cleanup := setGopath(filepath.Join(".", "testdata", "package"), t)
+	defer cleanup()
+	filename := filepath.Join(".", "testdata", "package", "src", "somepkg", "idents.go")
 
 	tests := []struct {
 		Pos  int
@@ -41,7 +27,7 @@ func TestIdent(t *testing.T) {
 		{Pos: 314, Doc: "Sprintf formats according to a format specifier and returns the resulting string.\n"}, // std func
 		{Pos: 342, Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (use)
 		{Pos: 477, Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (definition)
-		{Pos: 143, Doc: "IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.\n"},                    // std func call (alias import)
+		{Pos: 146, Doc: "IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.\n"},                    // std func call (alias import)
 
 		// field doc/comment precedence
 		{Pos: 623, Doc: "FieldA has doc\n"},
@@ -66,34 +52,30 @@ func TestIdent(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Doc, func(t *testing.T) {
-			pos := tokFile.Pos(test.Pos)
-			info, nodes := pathEnclosingInterval(pkgs[0], pos, pos)
-			for i := range nodes {
-				if ident, ok := nodes[i].(*ast.Ident); ok {
-					doc, err := IdentDoc(ident, info, pkgs[0])
-					if err != nil {
-						t.Fatal(err)
-					}
-					if !strings.HasPrefix(doc.Doc, test.Doc) {
-						t.Errorf("Want %q, got %q\n", test.Doc, doc.Doc)
-					}
-					if test.Decl != "" && !strings.HasPrefix(doc.Decl, test.Decl) {
-						t.Errorf("Decl: want %q, got %q\n", test.Decl, doc.Decl)
-					}
-					return
-				}
+			doc, err := Run(filename, test.Pos, false)
+			if err != nil {
+				t.Fatal(err)
 			}
-			t.Errorf("Couldn't find *ast.Ident at %v\n", test.Pos)
+			if !strings.HasPrefix(doc.Doc, test.Doc) {
+				t.Errorf("Want %q, got %q\n", test.Doc, doc.Doc)
+			}
+			if test.Decl != "" && !strings.HasPrefix(doc.Decl, test.Decl) {
+				t.Errorf("Decl: want %q, got %q\n", test.Decl, doc.Decl)
+			}
 		})
 	}
 }
 
 func TestModified(t *testing.T) {
-	path, err := filepath.Abs(filepath.Join("testdata", "const.go"))
+	cleanup := setGopath(filepath.Join(".", "testdata", "package"), t)
+	defer cleanup()
+
+	filename := filepath.Join(".", "testdata", "package", "src", "somepkg", "const.go")
+	path, err := filepath.Abs(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
-	contents := `package main
+	contents := `package somepkg
 
 import "fmt"
 
@@ -106,14 +88,14 @@ const (
 const Three = 3
 
 func main() {
-	fmt.Println(Zero, One, Three, Three)
-}`
+	fmt.Println(Zero, Three, Two, Three)
+}
+`
 	archive := fmt.Sprintf("%s\n%d\n%s", path, len(contents), contents)
-
 	archiveReader = bytes.NewBufferString(archive)
 	defer func() { archiveReader = os.Stdin }()
 
-	d, err := Run(path, int64(118), true)
+	d, err := Run(path, 118, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,18 +105,12 @@ func main() {
 }
 
 func TestConstantValue(t *testing.T) {
-	path := filepath.Join("testdata", "const.go")
-	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadAllSyntax}, path)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(pkgs) != 1 {
-		t.Errorf("Wanted 1 package for %s, got %d packages: %v", path, len(pkgs), pkgs)
-	}
-	prog := pkgs[0]
+	cleanup := setGopath(filepath.Join(".", "testdata", "package"), t)
+	defer cleanup()
+	filename := filepath.Join(".", "testdata", "package", "src", "somepkg", "const.go")
 
-	for _, offset := range []int64{107, 113, 118, 125} {
-		doc, err := DocForPos(prog, path, offset)
+	for _, offset := range []int{111, 116, 121, 128} {
+		doc, err := Run(filename, offset, false)
 		if err != nil {
 			t.Error(err)
 		}
@@ -145,19 +121,13 @@ func TestConstantValue(t *testing.T) {
 }
 
 func TestUnexportedFields(t *testing.T) {
-	path := filepath.Join("testdata", "idents.go")
-	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadAllSyntax}, path)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(pkgs) != 1 {
-		t.Errorf("Wanted 1 package for %s, got %d packages: %v", path, len(pkgs), pkgs)
-	}
-	prog := pkgs[0]
+	cleanup := setGopath(filepath.Join(".", "testdata", "package"), t)
+	defer cleanup()
+	filename := filepath.Join(".", "testdata", "package", "src", "somepkg", "idents.go")
 
 	for _, showUnexported := range []bool{true, false} {
 		*showUnexportedFields = showUnexported
-		doc, err := DocForPos(prog, path, 1051)
+		doc, err := Run(filename, 1051, false)
 		if err != nil {
 			t.Error(err)
 		}
@@ -169,60 +139,51 @@ func TestUnexportedFields(t *testing.T) {
 }
 
 func TestEmbeddedTypes(t *testing.T) {
-	cleanup, err := tempGopath("embed.go", "embed")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if cleanup != nil {
-		defer cleanup()
-	}
+	cleanup := setGopath(filepath.Join(".", "testdata", "package"), t)
+	defer cleanup()
+	filename := filepath.Join(".", "testdata", "package", "src", "somepkg", "embed.go")
 
 	tests := []struct {
 		description string
-		offset      int64
+		offset      int
 		want        string
 	}{
-		{"embedded value", 75, "foo doc\n"},
-		{"embedded pointer", 112, "foo doc\n"},
+		{"embedded value", 77, "foo doc\n"},
+		{"embedded pointer", 113, "foo doc\n"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
-			doc, err := Run("embed.go", test.offset, false)
+			doc, err := Run(filename, test.offset, false)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if doc.Doc != test.want {
 				t.Errorf("want %q, got %q", test.want, doc.Doc)
 			}
-			if doc.Pkg != "embed" {
-				t.Errorf("want package embed, got %q", doc.Pkg)
+			if doc.Pkg != "somepkg" {
+				t.Errorf("want package somepkg, got %q", doc.Pkg)
 			}
 		})
 	}
 }
 
 func TestIssue20(t *testing.T) {
-	cleanup, err := tempGopath("issue20.go", "foo")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cleanup != nil {
-		defer cleanup()
-	}
+	cleanup := setGopath(filepath.Join(".", "testdata", "package"), t)
+	defer cleanup()
+	filename := filepath.Join(".", "testdata", "package", "src", "somepkg", "issue20.go")
 
 	tests := []struct {
 		desc   string
 		want   string
-		offset int64
+		offset int
 	}{
-		{"named type", "var words []string", 114},
-		{"unnamed type", "var tests []struct{Name string; args string}", 281},
+		{"named type", "var words []string", 116},
+		{"unnamed type", "var tests []struct{Name string; args string}", 283},
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			doc, err := Run("issue20.go", test.offset, false)
+			doc, err := Run(filename, test.offset, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -239,46 +200,11 @@ func TestIssue20(t *testing.T) {
 }
 
 func TestVendoredIdent(t *testing.T) {
-	gopath, cleanup, err := tempGopathDir()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	cleanup := setGopath(filepath.Join(".", "testdata", "withvendor"), t)
 	defer cleanup()
 
-	progDir := filepath.Join(gopath, "src", "github.com", "zmb3", "prog")
-	pkgDir := filepath.Join(progDir, "vendor", "github.com", "zmb3", "vp")
-
-	err = os.MkdirAll(pkgDir, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		os.RemoveAll(gopath)
-	}()
-
-	err = copyFile(filepath.Join(progDir, "main.go"), filepath.FromSlash("./testdata/main.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = copyFile(filepath.Join(pkgDir, "vp.go"), filepath.FromSlash("./testdata/vp.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = os.Chdir(progDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		os.Chdir(cwd)
-	}()
-
-	doc, err := Run("main.go", 63, false)
+	filename := filepath.Join(".", "testdata", "withvendor", "src", "main", "main.go")
+	doc, err := Run(filename, 63, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,58 +213,21 @@ func TestVendoredIdent(t *testing.T) {
 	if doc.Import != want {
 		t.Errorf("want %s, got %s", want, doc.Import)
 	}
+	if doc.Doc != "Hello says hello.\n" {
+		t.Errorf("want 'Hello says hello.\n', got %q", doc.Doc)
+	}
 }
 
-func tempGopathDir() (string, func(), error) {
-	gopath, err := ioutil.TempDir("", "gogetdoc")
-	if err != nil {
-		return "", nil, err
-	}
-	oldgopath := os.Getenv("GOPATH")
-	os.Setenv("GOPATH", gopath)
-	cleanup := func() {
-		os.Setenv("GOPATH", oldgopath)
-		os.RemoveAll(gopath)
-	}
+func setGopath(path string, t *testing.T) func() {
+	t.Helper()
 
-	return gopath, cleanup, err
-}
-
-func tempGopath(filename, pkg string) (cleanup func(), err error) {
-	gopath, gopathcleanup, err := tempGopathDir()
+	orig := os.Getenv("GOPATH")
+	abs, err := filepath.Abs(path)
 	if err != nil {
-		return nil, err
+		t.Fatal(err)
 	}
-
-	pkgDir := filepath.Join(gopath, "src", "github.com", "zmb3", pkg)
-	err = os.MkdirAll(pkgDir, 0755)
-	if err != nil {
-		os.RemoveAll(gopath)
-		return nil, err
-	}
-
-	err = copyFile(filepath.Join(pkgDir, filename), filepath.FromSlash("./testdata/"+filename))
-	if err != nil {
-		os.RemoveAll(gopath)
-		return nil, err
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		os.RemoveAll(gopath)
-		return nil, err
-	}
-	err = os.Chdir(pkgDir)
-	if err != nil {
-		os.RemoveAll(gopath)
-		return nil, err
-	}
-
-	cleanup = func() {
-		os.Chdir(cwd)
-		gopathcleanup()
-	}
-	return cleanup, nil
+	os.Setenv("GOPATH", abs)
+	return func() { os.Setenv("GOPATH", orig) }
 }
 
 func copyFile(dst, src string) error {

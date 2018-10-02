@@ -1,4 +1,4 @@
-package embed
+package somepkg
 
 // foo doc
 type foo struct {
