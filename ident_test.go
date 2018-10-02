@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -228,21 +227,4 @@ func setGopath(path string, t *testing.T) func() {
 	}
 	os.Setenv("GOPATH", abs)
 	return func() { os.Setenv("GOPATH", orig) }
-}
-
-func copyFile(dst, src string) error {
-	orig, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("copying file %s: %v", src, err)
-	}
-	defer orig.Close()
-
-	copy, err := os.Create(dst)
-	if err != nil {
-		return fmt.Errorf("creating copy %s: %v", dst, err)
-	}
-	defer copy.Close()
-
-	_, err = io.Copy(copy, orig)
-	return err
 }
