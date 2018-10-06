@@ -42,6 +42,17 @@ func TestParseInvalidPos(t *testing.T) {
 	}
 }
 
+func TestRunInvalidPosGopath(t *testing.T) {
+	cleanup := setGopath(filepath.Join(".", "testdata", "package"), t)
+	defer cleanup()
+	filename := filepath.Join(".", "testdata", "package", "src", "somepkg", "idents.go")
+
+	_, err := Run(filename, 5000, false)
+	if err == nil {
+		t.Fatal("expected invalid pos error")
+	}
+}
+
 func TestRunOutsideGopath(t *testing.T) {
 	tests := []struct {
 		Pos int

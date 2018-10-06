@@ -89,7 +89,11 @@ func main() {
 // containing the search position.  It can optionally load modified files from
 // an overlay archive.
 func Load(filename string, offset int, modified bool) (*packages.Package, []ast.Node, error) {
-	ch := make(chan []ast.Node, 1)
+	type result struct {
+		nodes []ast.Node
+		err   error
+	}
+	ch := make(chan result, 1)
 	var archive map[string][]byte
 
 	if modified {
@@ -142,11 +146,15 @@ func Load(filename string, offset int, modified bool) (*packages.Package, []ast.
 
 			pos := start + token.Pos(offset)
 			if pos > file.End() {
-				return file, fmt.Errorf("cursor %d is beyond end of file %s (%d)", offset, fname, file.End()-file.Pos())
+				err := fmt.Errorf("cursor %d is beyond end of file %s (%d)", offset, fname, file.End()-file.Pos())
+				ch <- result{nil, err}
+				return file, err
 			}
 			path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 			if len(path) < 1 {
-				return nil, fmt.Errorf("offset was not a valid token")
+				err := fmt.Errorf("offset was not a valid token")
+				ch <- result{nil, err}
+				return nil, err
 			}
 
 			// if we are inside a function, we need to retain that function body
@@ -157,7 +165,7 @@ func Load(filename string, offset int, modified bool) (*packages.Package, []ast.
 					break
 				}
 			}
-			ch <- path
+			ch <- result{path, nil}
 		}
 		// and drop all function bodies that are not relevant so they don't get
 		// type checked
@@ -185,7 +193,12 @@ func Load(filename string, offset int, modified bool) (*packages.Package, []ast.
 	if len(pkgs) > 1 {
 		log.Printf("packages not processed: %v\n", pkgs[1:])
 	}
-	return pkgs[0], <-ch, nil
+
+	r := <-ch
+	if r.err != nil {
+		return nil, nil, err
+	}
+	return pkgs[0], r.nodes, nil
 }
 
 // Run is a wrapper for the gogetdoc command.  It is broken out of main for easier testing.
