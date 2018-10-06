@@ -45,6 +45,11 @@ This allows editors to supply gogetdoc with the contents of their unsaved buffer
 
 const debugAST = false
 
+func fatal(args ...interface{}) {
+	fmt.Fprintln(os.Stderr, args...)
+	os.Exit(1)
+}
+
 func main() {
 	// disable GC as gogetdoc is a short-lived program
 	debug.SetGCPercent(-1)
@@ -61,21 +66,21 @@ func main() {
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
-			log.Fatal(err)
+			fatal(err)
 		}
 		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatal(err)
+			fatal(err)
 		}
 		defer pprof.StopCPUProfile()
 	}
 	filename, offset, err := parsePos(*pos)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	d, err := Run(filename, offset, *modified)
 	if err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 
 	if *jsonOutput {
