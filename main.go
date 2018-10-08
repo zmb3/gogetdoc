@@ -110,11 +110,10 @@ func Load(filename string, offset int, modified bool) (*packages.Package, []ast.
 	}
 	// Adapted from: https://github.com/ianthehat/godef
 	fstat, fstatErr := os.Stat(filename)
-	parseFile := func(fset *token.FileSet, fname string) (*ast.File, error) {
+	parseFile := func(fset *token.FileSet, fname string, filedata []byte) (*ast.File, error) {
 		var (
-			filedata []byte
-			err      error
-			s        os.FileInfo
+			err error
+			s   os.FileInfo
 		)
 		isInputFile := false
 		if filename == fname {
@@ -125,13 +124,16 @@ func Load(filename string, offset int, modified bool) (*packages.Package, []ast.
 			isInputFile = os.SameFile(fstat, s)
 		}
 
-		if b, ok := archive[fname]; ok {
-			filedata = b
-		} else {
-			if filedata, err = ioutil.ReadFile(fname); err != nil {
-				return nil, fmt.Errorf("cannot read %s: %v", fname, err)
+		if filedata == nil {
+			if b, ok := archive[fname]; ok {
+				filedata = b
+			} else {
+				if filedata, err = ioutil.ReadFile(fname); err != nil {
+					return nil, fmt.Errorf("cannot read %s: %v", fname, err)
+				}
 			}
 		}
+
 		mode := parser.ParseComments
 		if isInputFile && debugAST {
 			mode |= parser.Trace
