@@ -47,7 +47,7 @@ func TestRunInvalidPosGopath(t *testing.T) {
 	defer cleanup()
 	filename := filepath.Join(".", "testdata", "package", "src", "somepkg", "idents.go")
 
-	_, err := Run(filename, 5000, false)
+	_, err := Run(filename, 5000, nil)
 	if err == nil {
 		t.Fatal("expected invalid pos error")
 	}
@@ -63,7 +63,7 @@ func TestRunOutsideGopath(t *testing.T) {
 	}
 	filename := filepath.Join(".", "testdata", "amodule", "hello.go")
 	for _, test := range tests {
-		doc, err := Run(filename, test.Pos, false)
+		doc, err := Run(filename, test.Pos, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

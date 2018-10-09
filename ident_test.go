@@ -1,12 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/buildutil"
 )
 
 func TestIdent(t *testing.T) {
@@ -51,7 +52,7 @@ func TestIdent(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Doc, func(t *testing.T) {
-			doc, err := Run(filename, test.Pos, false)
+			doc, err := Run(filename, test.Pos, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -91,10 +92,12 @@ func main() {
 }
 `
 	archive := fmt.Sprintf("%s\n%d\n%s", path, len(contents), contents)
-	archiveReader = bytes.NewBufferString(archive)
-	defer func() { archiveReader = os.Stdin }()
+	overlay, err := buildutil.ParseOverlayArchive(strings.NewReader(archive))
+	if err != nil {
+		t.Fatalf("couldn't parse overlay: %v", err)
+	}
 
-	d, err := Run(path, 118, true)
+	d, err := Run(path, 118, overlay)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +112,7 @@ func TestConstantValue(t *testing.T) {
 	filename := filepath.Join(".", "testdata", "package", "src", "somepkg", "const.go")
 
 	for _, offset := range []int{111, 116, 121, 128} {
-		doc, err := Run(filename, offset, false)
+		doc, err := Run(filename, offset, nil)
 		if err != nil {
 			t.Error(err)
 		}
@@ -126,7 +129,7 @@ func TestUnexportedFields(t *testing.T) {
 
 	for _, showUnexported := range []bool{true, false} {
 		*showUnexportedFields = showUnexported
-		doc, err := Run(filename, 1051, false)
+		doc, err := Run(filename, 1051, nil)
 		if err != nil {
 			t.Error(err)
 		}
@@ -153,7 +156,7 @@ func TestEmbeddedTypes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.description, func(t *testing.T) {
-			doc, err := Run(filename, test.offset, false)
+			doc, err := Run(filename, test.offset, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -182,7 +185,7 @@ func TestIssue20(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			doc, err := Run(filename, test.offset, false)
+			doc, err := Run(filename, test.offset, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -203,7 +206,7 @@ func TestVendoredIdent(t *testing.T) {
 	defer cleanup()
 
 	filename := filepath.Join(".", "testdata", "withvendor", "src", "main", "main.go")
-	doc, err := Run(filename, 63, false)
+	doc, err := Run(filename, 63, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
