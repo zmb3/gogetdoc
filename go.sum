@@ -1,2 +1,4 @@
 golang.org/x/tools v0.0.0-20181002045332-008d18139cb7 h1:ddSeR7D3K2aaUNa1MmX11fxyDmRNnGNWHTiUoZI0Vu0=
 golang.org/x/tools v0.0.0-20181002045332-008d18139cb7/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+golang.org/x/tools v0.0.0-20181008205924-a2b3f7f249e9 h1:T3nuFyXXDj5KXX9CqQm/r/YEL4Gua01s/ZEdfdLyJ2c=
+golang.org/x/tools v0.0.0-20181008205924-a2b3f7f249e9/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=

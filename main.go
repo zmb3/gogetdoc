@@ -78,7 +78,15 @@ func main() {
 		fatal(err)
 	}
 
-	d, err := Run(filename, offset, *modified)
+	var overlay map[string][]byte
+	if *modified {
+		overlay, err = buildutil.ParseOverlayArchive(archiveReader)
+		if err != nil {
+			fatal(fmt.Errorf("invalid archive: %v", err))
+		}
+	}
+
+	d, err := Run(filename, offset, overlay)
 	if err != nil {
 		fatal(err)
 	}
@@ -93,28 +101,19 @@ func main() {
 // Load loads the package containing the specified file and returns the AST file
 // containing the search position.  It can optionally load modified files from
 // an overlay archive.
-func Load(filename string, offset int, modified bool) (*packages.Package, []ast.Node, error) {
+func Load(filename string, offset int, overlay map[string][]byte) (*packages.Package, []ast.Node, error) {
 	type result struct {
 		nodes []ast.Node
 		err   error
 	}
 	ch := make(chan result, 1)
-	var archive map[string][]byte
 
-	if modified {
-		var err error
-		archive, err = buildutil.ParseOverlayArchive(archiveReader)
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid archive: %v", err)
-		}
-	}
 	// Adapted from: https://github.com/ianthehat/godef
 	fstat, fstatErr := os.Stat(filename)
-	parseFile := func(fset *token.FileSet, fname string) (*ast.File, error) {
+	parseFile := func(fset *token.FileSet, fname string, src []byte) (*ast.File, error) {
 		var (
-			filedata []byte
-			err      error
-			s        os.FileInfo
+			err error
+			s   os.FileInfo
 		)
 		isInputFile := false
 		if filename == fname {
@@ -125,18 +124,11 @@ func Load(filename string, offset int, modified bool) (*packages.Package, []ast.
 			isInputFile = os.SameFile(fstat, s)
 		}
 
-		if b, ok := archive[fname]; ok {
-			filedata = b
-		} else {
-			if filedata, err = ioutil.ReadFile(fname); err != nil {
-				return nil, fmt.Errorf("cannot read %s: %v", fname, err)
-			}
-		}
 		mode := parser.ParseComments
 		if isInputFile && debugAST {
 			mode |= parser.Trace
 		}
-		file, err := parser.ParseFile(fset, fname, filedata, mode)
+		file, err := parser.ParseFile(fset, fname, src, mode)
 		if file == nil || err != nil {
 			return nil, err
 		}
@@ -182,6 +174,7 @@ func Load(filename string, offset int, modified bool) (*packages.Package, []ast.
 		return file, err
 	}
 	cfg := &packages.Config{
+		Overlay:   overlay,
 		Mode:      packages.LoadAllSyntax,
 		ParseFile: parseFile,
 		Tests:     strings.HasSuffix(filename, "_test.go"),
@@ -207,8 +200,8 @@ func Load(filename string, offset int, modified bool) (*packages.Package, []ast.
 }
 
 // Run is a wrapper for the gogetdoc command.  It is broken out of main for easier testing.
-func Run(filename string, offset int, modified bool) (*Doc, error) {
-	pkg, nodes, err := Load(filename, offset, modified)
+func Run(filename string, offset int, overlay map[string][]byte) (*Doc, error) {
+	pkg, nodes, err := Load(filename, offset, overlay)
 	if err != nil {
 		return nil, err
 	}

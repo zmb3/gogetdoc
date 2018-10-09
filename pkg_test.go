@@ -22,7 +22,7 @@ func TestPackages(t *testing.T) {
 		{118, "Package math provides basic constants and mathematical functions"}, // aliased import
 	}
 	for _, test := range tests {
-		d, err := Run(filename, test.Offset, false)
+		d, err := Run(filename, test.Offset, nil)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -58,7 +58,7 @@ func TestVendoredPackageImport(t *testing.T) {
 
 	filename := filepath.Join(".", "testdata", "withvendor", "src", "main", "main.go")
 
-	doc, err := Run(filename, 39, false)
+	doc, err := Run(filename, 39, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
