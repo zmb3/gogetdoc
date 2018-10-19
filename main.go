@@ -179,7 +179,7 @@ func Load(filename string, offset int, overlay map[string][]byte) (*packages.Pac
 		ParseFile: parseFile,
 		Tests:     strings.HasSuffix(filename, "_test.go"),
 	}
-	pkgs, err := packages.Load(cfg, fmt.Sprintf("contains:%s", filename))
+	pkgs, err := packages.Load(cfg, fmt.Sprintf("file=%s", filename))
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot load package containing %s: %v", filename, err)
 	}
