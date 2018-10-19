@@ -72,3 +72,25 @@ func TestRunOutsideGopath(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue44(t *testing.T) {
+	filename := filepath.Join(".", "testdata", "interface-methods", "rabbit.go")
+	for _, test := range []struct {
+		Pos  int
+		Decl string
+	}{
+		{87, `func (Thing).Do(s Stuff) Stuff`},
+		{151, `func (Thing).DoWithError(s Stuff) (Stuff, error)`},
+		{245, `func (Thing).DoWithNoArgs()`},
+		{263, `func (Thing).NamedReturns() (s string, err error)`},
+		{296, `func (Thing).SameTypeParams(x string, y string)`},
+	} {
+		doc, err := Run(filename, test.Pos, nil)
+		if err != nil {
+			t.Fatalf("issue44, pos %d: %v", test.Pos, err)
+		}
+		if doc.Decl != test.Decl {
+			t.Errorf("pos %d, invalid decl: want %q, got %q", test.Pos, test.Decl, doc.Decl)
+		}
+	}
+}

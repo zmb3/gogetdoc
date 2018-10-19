@@ -48,15 +48,7 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 		cp.Body = nil
 		nc = &cp
 	case *ast.Field:
-		// Not supported by go/printer
-
-		// TODO(dominikh): Methods in interfaces are syntactically
-		// represented as fields. Using types.Object.String for those
-		// causes them to look different from real functions.
-		// go/printer doesn't include the import paths in names, while
-		// Object.String does. Fix that.
-
-		return obj.String()
+		return types.ObjectString(obj, func(p *types.Package) string { return "" })
 	case *ast.TypeSpec:
 		specCp := *n
 		if !*showUnexportedFields {
@@ -108,6 +100,22 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 	err := cfg.Fprint(buf, prog.Fset, nc)
 	if err != nil {
 		return obj.String()
+	}
+	return buf.String()
+}
+
+func fieldList(list *ast.FieldList, fset *token.FileSet) string {
+	buf := &bytes.Buffer{}
+	for i, fld := range list.List {
+		// TODO: multiple returns, named returns, etc.
+		if len(fld.Names) > 0 {
+			printer.Fprint(buf, fset, fld.Names[0])
+		}
+		buf.WriteString(" ")
+		printer.Fprint(buf, fset, fld.Type)
+		if i != list.NumFields()-1 {
+			buf.WriteString(", ")
+		}
 	}
 	return buf.String()
 }
