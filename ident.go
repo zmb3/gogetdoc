@@ -104,22 +104,6 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 	return buf.String()
 }
 
-func fieldList(list *ast.FieldList, fset *token.FileSet) string {
-	buf := &bytes.Buffer{}
-	for i, fld := range list.List {
-		// TODO: multiple returns, named returns, etc.
-		if len(fld.Names) > 0 {
-			printer.Fprint(buf, fset, fld.Names[0])
-		}
-		buf.WriteString(" ")
-		printer.Fprint(buf, fset, fld.Type)
-		if i != list.NumFields()-1 {
-			buf.WriteString(", ")
-		}
-	}
-	return buf.String()
-}
-
 // IdentDoc attempts to get the documentation for a *ast.Ident.
 func IdentDoc(id *ast.Ident, info *types.Info, pkg *packages.Package) (*Doc, error) {
 	// get definition of identifier
