@@ -206,7 +206,7 @@ func TestVendoredIdent(t *testing.T) {
 	defer cleanup()
 
 	filename := filepath.Join(".", "testdata", "withvendor", "src", "main", "main.go")
-	doc, err := Run(filename, 63, nil)
+	doc, err := Run(filename, 76, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,6 +217,16 @@ func TestVendoredIdent(t *testing.T) {
 	}
 	if doc.Doc != "Hello says hello.\n" {
 		t.Errorf("want 'Hello says hello.\n', got %q", doc.Doc)
+	}
+
+	doc, err = Run(filename, 99, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	decl := `const Foo untyped string`
+	if decl != doc.Decl {
+		t.Errorf("invalid decl: want %q, got %q", decl, doc.Decl)
 	}
 }
 

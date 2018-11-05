@@ -7,3 +7,5 @@ import "fmt"
 func Hello() {
 	fmt.Println("Hello")
 }
+
+const Foo = "bar"

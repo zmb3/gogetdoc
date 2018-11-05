@@ -36,7 +36,8 @@ func findVarSpec(decl *ast.GenDecl, pos token.Pos) *ast.ValueSpec {
 }
 
 func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
-	//fmt.Printf("formatting %T node\n", n)
+	qual := func(p *types.Package) string { return "" }
+	// fmt.Printf("formatting %T node\n", n)
 	var nc ast.Node
 	// Render a copy of the node with no documentation.
 	// We emit the documentation ourself.
@@ -48,7 +49,7 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 		cp.Body = nil
 		nc = &cp
 	case *ast.Field:
-		return types.ObjectString(obj, func(p *types.Package) string { return "" })
+		return types.ObjectString(obj, qual)
 	case *ast.TypeSpec:
 		specCp := *n
 		if !*showUnexportedFields {
@@ -92,7 +93,7 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 		nc = &cp
 
 	default:
-		return obj.String()
+		return types.ObjectString(obj, qual)
 	}
 
 	buf := &bytes.Buffer{}
@@ -101,7 +102,8 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 	if err != nil {
 		return obj.String()
 	}
-	return buf.String()
+
+	return stripVendorFromImportPath(buf.String())
 }
 
 // IdentDoc attempts to get the documentation for a *ast.Ident.

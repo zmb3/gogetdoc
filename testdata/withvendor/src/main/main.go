@@ -1,7 +1,12 @@
 package main
 
-import "github.com/zmb3/vp"
+import (
+	"fmt"
+
+	"github.com/zmb3/vp"
+)
 
 func main() {
 	vp.Hello()
+	fmt.Println(vp.Foo)
 }
