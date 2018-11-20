@@ -20,38 +20,39 @@ func TestIdent(t *testing.T) {
 		Doc  string
 		Decl string
 	}{
-		{Pos: 190, Doc: "SayHello says hello.\n"},                                                              // method call
-		{Pos: 202, Doc: "SayGoodbye says goodbye.\n"},                                                          // function call
-		{Pos: 300, Doc: "Message is a message.\n"},                                                             // var (use)
-		{Pos: 382, Doc: "Message is a message.\n"},                                                             // var (definition)
-		{Pos: 314, Doc: "Sprintf formats according to a format specifier and returns the resulting string.\n"}, // std func
-		{Pos: 342, Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (use)
-		{Pos: 477, Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},     // const (definition)
-		{Pos: 146, Doc: "IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.\n"},                    // std func call (alias import)
+		{Pos: 146, Doc: "IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.\n", Decl: "func IsNaN(f float64) (is bool)"},         // std func call (alias import)
+		{Pos: 190, Doc: "SayHello says hello.\n", Decl: "func (X) SayHello()"},                                                               // method call
+		{Pos: 202, Doc: "SayGoodbye says goodbye.\n", Decl: "func SayGoodbye() (string, error)"},                                             // function call
+		{Pos: 319, Doc: "Message is a message.\n", Decl: "var Message string"},                                                               // var (use)
+		{Pos: 415, Doc: "Message is a message.\n"},                                                                                           // var (definition)
+		{Pos: 329, Doc: "Sprintf formats according to a format specifier and returns the resulting string.\n"},                               // std func
+		{Pos: 358, Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42", Decl: "const Answer untyped int"}, // const (use)
+		{Pos: 510, Doc: "Answer is the answer to life the universe and everything.\n\nConstant Value: 42"},                                   // const (definition)
 
 		// field doc/comment precedence
-		{Pos: 623, Doc: "FieldA has doc\n"},
-		{Pos: 632, Doc: "FieldB has a comment\n"},
+		{Pos: 656, Doc: "FieldA has doc\n", Decl: "field FieldA string"},
+		{Pos: 665, Doc: "FieldB has a comment\n"},
 
 		// GenDecl doc/comment precedence
-		{Pos: 984, Doc: "Alpha doc"},
-		{Pos: 999, Doc: "Bravo comment"},
+		{Pos: 1017, Doc: "Alpha doc", Decl: "var Alpha int"},
+		{Pos: 1032, Doc: "Bravo comment", Decl: "var Bravo int"},
 
 		// builtins
-		{Pos: 942, Doc: "The error built-in interface type is the conventional"},
-		{Pos: 702, Doc: "The append built-in function appends elements to the end"},
-		{Pos: 730, Doc: "float32 is the set of all IEEE-754 32-bit floating-point numbers."},
-		{Pos: 788, Doc: "iota is a predeclared identifier representing the untyped integer ordinal"},
-		{Pos: 831, Doc: "nil is a predeclared identifier representing the zero"},
-		{Pos: 881, Doc: "The len built-in function returns the length of v"},
-		{Pos: 917, Doc: "The close built-in function closes a channel, which must"},
+		{Pos: 975, Doc: "The error built-in interface type is the conventional"},
+		{Pos: 735, Doc: "The append built-in function appends elements to the end", Decl: "func append(slice []Type, elems ...Type) []Type"},
+		{Pos: 762, Doc: "float32 is the set of all IEEE-754 32-bit floating-point numbers."},
+		{Pos: 821, Doc: "iota is a predeclared identifier representing the untyped integer ordinal"},
+		{Pos: 864, Doc: "nil is a predeclared identifier representing the zero"},
+		{Pos: 914, Doc: "The len built-in function returns the length of v"},
+		{Pos: 950, Doc: "The close built-in function closes a channel, which must"},
 
-		// decl
-		{Pos: 591, Decl: "type Foo struct {"},
+		// type spec
+		{Pos: 53, Decl: "type X struct{}"},
+		{Pos: 1222, Decl: "type NewString string"},
 	}
 
 	for _, test := range tests {
-		t.Run(test.Doc, func(t *testing.T) {
+		t.Run(fmt.Sprintf("ident pos %d", test.Pos), func(t *testing.T) {
 			doc, err := Run(filename, test.Pos, nil)
 			if err != nil {
 				t.Fatal(err)
@@ -59,7 +60,7 @@ func TestIdent(t *testing.T) {
 			if !strings.HasPrefix(doc.Doc, test.Doc) {
 				t.Errorf("Want %q, got %q\n", test.Doc, doc.Doc)
 			}
-			if test.Decl != "" && !strings.HasPrefix(doc.Decl, test.Decl) {
+			if test.Decl != "" && doc.Decl != test.Decl {
 				t.Errorf("Decl: want %q, got %q\n", test.Decl, doc.Decl)
 			}
 		})
@@ -129,9 +130,9 @@ func TestUnexportedFields(t *testing.T) {
 
 	for _, showUnexported := range []bool{true, false} {
 		*showUnexportedFields = showUnexported
-		doc, err := Run(filename, 1051, nil)
+		doc, err := Run(filename, 1085, nil)
 		if err != nil {
-			t.Error(err)
+			t.Fatalf("showUnexportedFields=%v: %v", showUnexported, err)
 		}
 		hasUnexportedField := strings.Contains(doc.Decl, "notVisible")
 		if hasUnexportedField != *showUnexportedFields {

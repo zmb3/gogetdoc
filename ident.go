@@ -36,20 +36,22 @@ func findVarSpec(decl *ast.GenDecl, pos token.Pos) *ast.ValueSpec {
 }
 
 func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
-	qual := func(p *types.Package) string { return "" }
 	// fmt.Printf("formatting %T node\n", n)
+	qual := func(p *types.Package) string { return "" }
+
+	// We'd like to use types.ObjectString(obj, qual) where we can,
+	// but there are several cases where we must render a copy of the AST
+	// node with no documentation (we emit that ourselves).
+	// 1) FuncDecl: ObjectString won't give us the decl for builtins
+	// 2) TypeSpec: ObjectString does not allow us to trim unexported fields
+	// 3) GenDecl: we need to find the inner {Type|Var}Spec
 	var nc ast.Node
-	// Render a copy of the node with no documentation.
-	// We emit the documentation ourself.
 	switch n := n.(type) {
 	case *ast.FuncDecl:
 		cp := *n
 		cp.Doc = nil
-		// Don't print the whole function body
-		cp.Body = nil
+		cp.Body = nil // Don't print the whole function body
 		nc = &cp
-	case *ast.Field:
-		return types.ObjectString(obj, qual)
 	case *ast.TypeSpec:
 		specCp := *n
 		if !*showUnexportedFields {
@@ -92,6 +94,8 @@ func formatNode(n ast.Node, obj types.Object, prog *packages.Package) string {
 		}
 		nc = &cp
 
+	case *ast.Field:
+		return types.ObjectString(obj, qual)
 	default:
 		return types.ObjectString(obj, qual)
 	}

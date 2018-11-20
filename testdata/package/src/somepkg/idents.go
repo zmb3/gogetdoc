@@ -19,9 +19,10 @@ func Baz() {
 }
 
 // SayGoodbye says goodbye.
-func SayGoodbye() {
+func SayGoodbye() (string, error) {
 	fmt.Println("Goodbye")
 	fmt.Println(Message, fmt.Sprintf("The answer is %d", Answer))
+	return "", nil
 }
 
 // Message is a message.
@@ -80,3 +81,5 @@ type HasUnexported struct {
 	Visible    string // Visible is an exported field
 	notVisible string // notVisible is an unexported field
 }
+
+type NewString string
