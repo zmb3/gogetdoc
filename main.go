@@ -218,6 +218,11 @@ func DocFromNodes(pkg *packages.Package, nodes []ast.Node) (*Doc, error) {
 		case *ast.Ident:
 			// if we can't find the object denoted by the identifier, keep searching)
 			if obj := pkg.TypesInfo.ObjectOf(node); obj == nil {
+				for _, imp := range pkg.Imports {
+					if obj := imp.TypesInfo.ObjectOf(node); obj == nil {
+						continue
+					}
+				}
 				continue
 			}
 			return IdentDoc(node, pkg.TypesInfo, pkg)
