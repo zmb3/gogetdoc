@@ -208,7 +208,7 @@ func Run(filename string, offset int, overlay map[string][]byte) (*Doc, error) {
 	return DocFromNodes(pkg, nodes)
 }
 
-func ObjectFound(pkg *packages.Package, node *ast.Ident) bool {
+func objectFound(pkg *packages.Package, node *ast.Ident) bool {
 	if obj := pkg.TypesInfo.ObjectOf(node); obj != nil {
 		return true
 	}
@@ -229,7 +229,7 @@ func DocFromNodes(pkg *packages.Package, nodes []ast.Node) (*Doc, error) {
 			return PackageDoc(pkg, ImportPath(node))
 		case *ast.Ident:
 			// if we can't find the object denoted by the identifier, keep searching)
-			if !ObjectFound(pkg, node) {
+			if !objectFound(pkg, node) {
 				continue
 			}
 			return IdentDoc(node, pkg.TypesInfo, pkg)
