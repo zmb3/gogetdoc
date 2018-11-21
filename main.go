@@ -208,6 +208,18 @@ func Run(filename string, offset int, overlay map[string][]byte) (*Doc, error) {
 	return DocFromNodes(pkg, nodes)
 }
 
+func ObjectFound(pkg *packages.Package, node *ast.Ident) bool {
+	if obj := pkg.TypesInfo.ObjectOf(node); obj != nil {
+		return true
+	}
+	for _, imp := range pkg.Imports {
+		if obj := imp.TypesInfo.ObjectOf(node); obj == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // DocFromNodes gets the documentation from the AST node(s) in the specified package.
 func DocFromNodes(pkg *packages.Package, nodes []ast.Node) (*Doc, error) {
 	for _, node := range nodes {
@@ -217,12 +229,7 @@ func DocFromNodes(pkg *packages.Package, nodes []ast.Node) (*Doc, error) {
 			return PackageDoc(pkg, ImportPath(node))
 		case *ast.Ident:
 			// if we can't find the object denoted by the identifier, keep searching)
-			if obj := pkg.TypesInfo.ObjectOf(node); obj == nil {
-				for _, imp := range pkg.Imports {
-					if obj := imp.TypesInfo.ObjectOf(node); obj == nil {
-						continue
-					}
-				}
+			if !ObjectFound(pkg, node) {
 				continue
 			}
 			return IdentDoc(node, pkg.TypesInfo, pkg)
