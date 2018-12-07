@@ -1,4 +1,4 @@
-# golang.org/x/tools v0.0.0-20181019005945-6adeb8aab2de
+# golang.org/x/tools v0.0.0-20181207195948-8634b1ecd393
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/buildutil
 golang.org/x/tools/go/packages
