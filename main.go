@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
@@ -173,11 +174,13 @@ func Load(filename string, offset int, overlay map[string][]byte) (*packages.Pac
 		}
 		return file, err
 	}
+	wd := filepath.Dir(filename)
 	cfg := &packages.Config{
 		Overlay:   overlay,
 		Mode:      packages.LoadAllSyntax,
 		ParseFile: parseFile,
 		Tests:     strings.HasSuffix(filename, "_test.go"),
+		Dir:       wd,
 	}
 	pkgs, err := packages.Load(cfg, fmt.Sprintf("file=%s", filename))
 	if err != nil {
