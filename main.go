@@ -132,7 +132,7 @@ func Load(filename string, offset int, overlay map[string][]byte) (*packages.Pac
 		file, err := parser.ParseFile(fset, fname, src, mode)
 		if file == nil {
 			if err==nil {
-				err=fmt.Errorf("%v failed to parse.", fname)	
+				err=fmt.Errorf("%v failed to parse", fname)	
 			}
 			if isInputFile {
 				ch <- result{nil, err}
