@@ -143,3 +143,22 @@ func setup(cfg *packages.Config) func() {
 		setEnv(originalEnv)
 	}
 }
+
+func TestIssue52(t *testing.T) {
+	filename := filepath.Join(".", "testdata", "issue52", "main.go")
+	for _, test := range []struct {
+		Pos int
+		Doc string
+	}{
+		{80, "V this works\n"},
+		{82, "Foo this doesn't work but should\n"},
+	} {
+		doc, err := Run(filename, test.Pos, nil)
+		if err != nil {
+			t.Fatalf("issue52, pos %d: %v", test.Pos, err)
+		}
+		if doc.Doc != test.Doc {
+			t.Errorf("issue52, pos %d, invalid decl: want %q, got %q", test.Pos, test.Doc, doc.Doc)
+		}
+	}
+}
