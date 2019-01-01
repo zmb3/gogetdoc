@@ -1,71 +1,46 @@
 package main
 
 import (
-	"go/parser"
 	"go/token"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/packages/packagestest"
 )
 
-func TestPackages(t *testing.T) {
-	cleanup := setGopath(filepath.Join(".", "testdata", "package-doc"), t)
-	defer cleanup()
-
-	filename := filepath.Join(".", "testdata", "package-doc", "src", "prog", "main.go")
-	tests := []struct {
-		Offset int
-		Doc    string
-	}{
-		{107, "\tPackage fmt implements formatted I/O"},                           // import spec
-		{113, "Package math provides basic constants and mathematical functions"}, // aliased import
-		{118, "Package math provides basic constants and mathematical functions"}, // aliased import
+func TestPackageDoc(t *testing.T) {
+	dir := filepath.Join(".", "testdata", "package-doc")
+	mods := []packagestest.Module{
+		{Name: "pkgdoc", Files: packagestest.MustCopyFileTree(dir)},
 	}
-	for _, test := range tests {
-		d, err := Run(filename, test.Offset, nil)
-		if err != nil {
-			t.Error(err)
-			continue
+
+	packagestest.TestAll(t, func(t *testing.T, exporter packagestest.Exporter) {
+		if exporter == packagestest.Modules {
+			return // TODO get working with Modules and GOPATH
 		}
-		if !strings.HasPrefix(d.Doc, test.Doc) {
-			t.Errorf("offset %v: Want '%s', got '%s'", test.Offset, test.Doc, d.Doc)
+		exported := packagestest.Export(t, exporter, mods)
+		defer exported.Cleanup()
+
+		teardown := setup(exported.Config)
+		defer teardown()
+
+		filename := exported.File("pkgdoc", "main.go")
+		if expectErr := exported.Expect(map[string]interface{}{
+			"pkgdoc": func(p token.Position, doc string) {
+				d, err := Run(filename, p.Offset, nil)
+				if err != nil {
+					t.Error(err)
+				}
+				if !strings.HasPrefix(d.Doc, doc) {
+					t.Errorf("expected %q, got %q", doc, d.Doc)
+				}
+				if !strings.HasPrefix(d.Decl, "package") {
+					t.Errorf("expected %q to begin with 'package'", d.Decl)
+				}
+			},
+		}); expectErr != nil {
+			t.Fatal(expectErr)
 		}
-		if !strings.HasPrefix(d.Decl, "package") {
-			t.Errorf("package decl must always start with \"package\", got %q", d.Decl)
-		}
-	}
-}
-
-func TestImportPath(t *testing.T) {
-	fset := token.NewFileSet()
-	filename := filepath.Join(".", "testdata", "package-doc", "src", "prog", "main.go")
-	f, err := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(f.Imports) != 2 {
-		t.Errorf("Want 2 imports, got %d\n", len(f.Imports))
-	}
-	ip := ImportPath(f.Imports[0])
-	if ip != "fmt" {
-		t.Errorf("Want 'fmt', got '%s'\n", ip)
-	}
-}
-
-func TestVendoredPackageImport(t *testing.T) {
-	cleanup := setGopath(filepath.Join(".", "testdata", "withvendor"), t)
-	defer cleanup()
-
-	filename := filepath.Join(".", "testdata", "withvendor", "src", "main", "main.go")
-
-	doc, err := Run(filename, 39, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if doc.Decl != "package vp" {
-		t.Errorf("want 'package vp', got '%s'", doc.Decl)
-	}
-	if doc.Import != "github.com/zmb3/vp" {
-		t.Errorf("want 'github.com/zmb3/vp', got %q", doc.Import)
-	}
+	})
 }

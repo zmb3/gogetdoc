@@ -1,9 +1,14 @@
 package main
 
 import (
+	"go/token"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/packages/packagestest"
 )
 
 func TestParseValidPos(t *testing.T) {
@@ -42,55 +47,81 @@ func TestParseInvalidPos(t *testing.T) {
 	}
 }
 
-func TestRunInvalidPosGopath(t *testing.T) {
-	cleanup := setGopath(filepath.Join(".", "testdata", "package"), t)
-	defer cleanup()
-	filename := filepath.Join(".", "testdata", "package", "src", "somepkg", "idents.go")
+func TestRunInvalidPos(t *testing.T) {
+	dir := filepath.Join(".", "testdata", "package")
+	mods := []packagestest.Module{
+		{Name: "somepkg", Files: packagestest.MustCopyFileTree(dir)},
+	}
+	packagestest.TestAll(t, func(t *testing.T, exporter packagestest.Exporter) {
+		if exporter == packagestest.Modules {
+			return // TODO get working with Modules and GOPATH
+		}
+		exported := packagestest.Export(t, exporter, mods)
+		defer exported.Cleanup()
 
-	_, err := Run(filename, 5000, nil)
-	if err == nil {
-		t.Fatal("expected invalid pos error")
+		teardown := setup(exported.Config)
+		defer teardown()
+
+		filename := exported.File("somepkg", "idents.go")
+		_, err := Run(filename, 5000, nil)
+		if err == nil {
+			t.Fatal("expected invalid pos error")
+		}
+	})
+}
+
+// github.com/zmb3/gogetdoc/issues/44
+func TestInterfaceDecls(t *testing.T) {
+	mods := []packagestest.Module{
+		{
+			Name:  "rabbit",
+			Files: packagestest.MustCopyFileTree(filepath.Join(".", "testdata", "interface-decls")),
+		},
+	}
+	// TODO: convert to packagestest.TestAll
+	exported := packagestest.Export(t, packagestest.Modules, mods)
+	defer exported.Cleanup()
+
+	teardown := setup(exported.Config)
+	defer teardown()
+
+	filename := "rabbit.go" // TODO
+
+	if expectErr := exported.Expect(map[string]interface{}{
+		"decl": func(p token.Position, decl string) {
+			doc, err := Run(filename, p.Offset, nil)
+			if err != nil {
+				t.Error(err)
+			}
+			if doc.Decl != decl {
+				t.Errorf("bad decl, want %q, got %q", decl, doc.Decl)
+			}
+		},
+	}); expectErr != nil {
+		t.Fatal(expectErr)
 	}
 }
 
-func TestRunOutsideGopath(t *testing.T) {
-	tests := []struct {
-		Pos int
-		Doc string
-	}{
-		{Pos: 23, Doc: "\tPackage fmt implements formatted I/O"},    // import "fmt"
-		{Pos: 48, Doc: "Println formats using the default formats"}, // call fmt.Println()
+func setup(cfg *packages.Config) func() {
+	dir, err := os.Getwd()
+	if err != nil {
+		panic(err)
 	}
-	filename := filepath.Join(".", "testdata", "amodule", "hello.go")
-	for _, test := range tests {
-		doc, err := Run(filename, test.Pos, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.HasPrefix(doc.Doc, test.Doc) {
-			t.Errorf("want '%s', got '%s'", test.Doc, doc.Doc)
+	err = os.Chdir(cfg.Dir)
+	if err != nil {
+		panic(err)
+	}
+	setEnv := func(env []string) {
+		for _, assignment := range env {
+			if i := strings.Index(assignment, "="); i > 0 {
+				os.Setenv(assignment[:i], assignment[i+1:])
+			}
 		}
 	}
-}
-
-func TestIssue44(t *testing.T) {
-	filename := filepath.Join(".", "testdata", "interface-methods", "rabbit.go")
-	for _, test := range []struct {
-		Pos  int
-		Decl string
-	}{
-		{87, `func (Thing).Do(s Stuff) Stuff`},
-		{151, `func (Thing).DoWithError(s Stuff) (Stuff, error)`},
-		{245, `func (Thing).DoWithNoArgs()`},
-		{263, `func (Thing).NamedReturns() (s string, err error)`},
-		{296, `func (Thing).SameTypeParams(x string, y string)`},
-	} {
-		doc, err := Run(filename, test.Pos, nil)
-		if err != nil {
-			t.Fatalf("issue44, pos %d: %v", test.Pos, err)
-		}
-		if doc.Decl != test.Decl {
-			t.Errorf("pos %d, invalid decl: want %q, got %q", test.Pos, test.Decl, doc.Decl)
-		}
+	originalEnv := os.Environ()
+	setEnv(cfg.Env)
+	return func() {
+		os.Chdir(dir)
+		setEnv(originalEnv)
 	}
 }

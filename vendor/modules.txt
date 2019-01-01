@@ -6,5 +6,7 @@ golang.org/x/tools/go/gcexportdata
 golang.org/x/tools/go/internal/cgo
 golang.org/x/tools/internal/gopathwalk
 golang.org/x/tools/internal/semver
+golang.org/x/tools/go/packages/packagestest
 golang.org/x/tools/go/internal/gcimporter
 golang.org/x/tools/internal/fastwalk
+golang.org/x/tools/go/expect
