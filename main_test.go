@@ -79,13 +79,13 @@ func TestInterfaceDecls(t *testing.T) {
 		},
 	}
 	// TODO: convert to packagestest.TestAll
-	exported := packagestest.Export(t, packagestest.Modules, mods)
+	exported := packagestest.Export(t, packagestest.GOPATH, mods)
 	defer exported.Cleanup()
 
 	teardown := setup(exported.Config)
 	defer teardown()
 
-	filename := "rabbit.go" // TODO
+	filename := exported.File("rabbit", "rabbit.go")
 
 	if expectErr := exported.Expect(map[string]interface{}{
 		"decl": func(p token.Position, decl string) {
