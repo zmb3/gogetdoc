@@ -4,6 +4,8 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -53,8 +55,8 @@ func TestRunInvalidPos(t *testing.T) {
 		{Name: "somepkg", Files: packagestest.MustCopyFileTree(dir)},
 	}
 	packagestest.TestAll(t, func(t *testing.T, exporter packagestest.Exporter) {
-		if exporter == packagestest.Modules {
-			return // TODO get working with Modules and GOPATH
+		if exporter == packagestest.Modules && !modulesSupported() {
+			t.Skip("Skipping modules test on", runtime.Version())
 		}
 		exported := packagestest.Export(t, exporter, mods)
 		defer exported.Cleanup()
@@ -102,8 +104,21 @@ func TestInterfaceDecls(t *testing.T) {
 	}
 }
 
+func modulesSupported() bool {
+	v := strings.TrimPrefix(runtime.Version(), "go")
+	parts := strings.Split(v, ".")
+	if len(parts) < 2 {
+		return false
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return false
+	}
+	return minor >= 11
+}
+
 func setup(cfg *packages.Config) func() {
-	dir, err := os.Getwd()
+	originalDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
@@ -111,6 +126,7 @@ func setup(cfg *packages.Config) func() {
 	if err != nil {
 		panic(err)
 	}
+
 	setEnv := func(env []string) {
 		for _, assignment := range env {
 			if i := strings.Index(assignment, "="); i > 0 {
@@ -120,8 +136,10 @@ func setup(cfg *packages.Config) func() {
 	}
 	originalEnv := os.Environ()
 	setEnv(cfg.Env)
+	os.Setenv("PWD", cfg.Dir) // https://go-review.googlesource.com/c/tools/+/143517/
+
 	return func() {
-		os.Chdir(dir)
+		os.Chdir(originalDir)
 		setEnv(originalEnv)
 	}
 }

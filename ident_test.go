@@ -3,6 +3,7 @@ package main
 import (
 	"go/token"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -16,8 +17,8 @@ func TestIdent(t *testing.T) {
 	}
 
 	packagestest.TestAll(t, func(t *testing.T, exporter packagestest.Exporter) {
-		if exporter == packagestest.Modules {
-			return // TODO get working with Modules and GOPATH
+		if exporter == packagestest.Modules && !modulesSupported() {
+			t.Skip("Skipping modules test on", runtime.Version())
 		}
 		exported := packagestest.Export(t, exporter, mods)
 		defer exported.Cleanup()
