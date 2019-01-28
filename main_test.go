@@ -143,3 +143,38 @@ func setup(cfg *packages.Config) func() {
 		setEnv(originalEnv)
 	}
 }
+
+func TestIssue52(t *testing.T) {
+	dir := filepath.Join(".", "testdata", "issue52")
+	mods := []packagestest.Module{
+		{Name: "issue52", Files: packagestest.MustCopyFileTree(dir)},
+	}
+	packagestest.TestAll(t, func(t *testing.T, exporter packagestest.Exporter) {
+		if exporter == packagestest.Modules && !modulesSupported() {
+			t.Skip("Skipping modules test on", runtime.Version())
+		}
+		exported := packagestest.Export(t, exporter, mods)
+		defer exported.Cleanup()
+
+		teardown := setup(exported.Config)
+		defer teardown()
+
+		filename := exported.File("issue52", "main.go")
+
+		for _, test := range []struct {
+			Pos int
+			Doc string
+		}{
+			{64, "V this works\n"},
+			{66, "Foo this doesn't work but should\n"},
+		} {
+			doc, err := Run(filename, test.Pos, nil)
+			if err != nil {
+				t.Fatalf("issue52, pos %d: %v", test.Pos, err)
+			}
+			if doc.Doc != test.Doc {
+				t.Errorf("issue52, pos %d, invalid decl: want %q, got %q", test.Pos, test.Doc, doc.Doc)
+			}
+		}
+	})
+}
