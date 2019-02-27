@@ -129,7 +129,10 @@ func Load(filename string, offset int, overlay map[string][]byte) (*packages.Pac
 			mode |= parser.Trace
 		}
 		file, err := parser.ParseFile(fset, fname, src, mode)
-		if file == nil || err != nil {
+		if file == nil {
+			if isInputFile {
+				ch <- result{nil, err}
+			}
 			return nil, err
 		}
 		var keepFunc *ast.FuncDecl
